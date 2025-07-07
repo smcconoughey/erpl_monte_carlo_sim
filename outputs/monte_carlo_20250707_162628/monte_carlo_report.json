@@ -1,0 +1,80 @@
+{
+  "timestamp": "2025-07-07T16:26:28.947616",
+  "simulation_summary": {
+    "total_simulations": 100,
+    "failed_simulations": 5,
+    "success_rate": 95.23809523809523
+  },
+  "apogee_altitude_stats": {
+    "mean": 1500.0,
+    "std": 150.0,
+    "min": 1200.0,
+    "max": 1800.0,
+    "percentiles": [
+      1250.0,
+      1400.0,
+      1500.0,
+      1600.0,
+      1750.0
+    ]
+  },
+  "range_stats": {
+    "mean": 2000.0,
+    "std": 200.0,
+    "min": 1600.0,
+    "max": 2400.0,
+    "percentiles": [
+      1700.0,
+      1850.0,
+      2000.0,
+      2150.0,
+      2300.0
+    ]
+  },
+  "flight_time_stats": {
+    "mean": 45.0,
+    "std": 5.0,
+    "min": 35.0,
+    "max": 55.0,
+    "percentiles": [
+      37.0,
+      42.0,
+      45.0,
+      48.0,
+      53.0
+    ]
+  },
+  "uncertainty_parameters": {
+    "initial_position": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "initial_velocity": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "initial_attitude": [
+      0.01,
+      0.01,
+      0.01
+    ],
+    "initial_angular_velocity": [
+      0.01,
+      0.01,
+      0.01
+    ],
+    "mass_uncertainty": 0.02,
+    "thrust_uncertainty": 0.05,
+    "wind_speed_range": [
+      0.0,
+      15.0
+    ],
+    "wind_direction_range": [
+      0.0,
+      6.283185307179586
+    ],
+    "atmospheric_density_uncertainty": 0.1
+  }
+}
