@@ -21,8 +21,8 @@ class Rocket:
         self.fin_count = 4  # Number of fins
         
         # Mass properties (dry mass)
-        self.dry_mass = 113.4  # kg (250 lb)
-        self.propellant_mass = 63.5  # kg (140 lb)
+        self.dry_mass = 70.4  # kg (250 lb)
+        self.propellant_mass = 43.5  # kg (140 lb)
         self.center_of_mass_dry = 4.9 # cg m from nose
         
         # Moments of inertia (dry, kg*m^2)
