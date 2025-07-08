@@ -17,7 +17,7 @@ from rocket_simulation import *
 
 # Create rocket and environment
 rocket = Rocket("My Rocket")
-motor = SolidMotor("Motor")
+motor = LiquidMotor("Motor")  # or SolidMotor for a solid propellant engine
 atmosphere = StandardAtmosphere()
 wind_model = WindModel()
 

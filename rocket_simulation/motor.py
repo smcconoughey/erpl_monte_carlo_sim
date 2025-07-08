@@ -122,4 +122,63 @@ class SolidMotor:
         # Update nozzle exit area (assume linear with thrust multiplier)
         perturbed_motor.nozzle_exit_area = self.nozzle_exit_area * thrust_multiplier
         
-        return perturbed_motor 
+        return perturbed_motor
+
+
+class LiquidMotor:
+    """Simple liquid rocket engine with altitude-dependent performance."""
+
+    def __init__(self, name="Liquid Motor", thrust_vacuum=10000.0,
+                 thrust_sea_level=9000.0, mass_flow_rate=5.0,
+                 propellant_mass=100.0):
+        self.name = name
+
+        self.thrust_vacuum = thrust_vacuum
+        self.thrust_sea_level = thrust_sea_level
+        self.mass_flow_rate = mass_flow_rate
+        self.propellant_mass = propellant_mass
+
+        self.nozzle_exit_area = (
+            self.thrust_vacuum - self.thrust_sea_level) / 101325.0
+
+        self.burn_time = self.propellant_mass / self.mass_flow_rate
+        self.total_impulse = self.thrust_vacuum * self.burn_time
+
+        self.thrust_uncertainty = 0.05
+        self.mass_flow_uncertainty = 0.03
+
+    def get_thrust(self, time, ambient_pressure=101325.0):
+        if time < 0 or time > self.burn_time:
+            return 0.0
+
+        return self.thrust_vacuum - self.nozzle_exit_area * ambient_pressure
+
+    def get_mass_flow_rate(self, time):
+        if time < 0 or time > self.burn_time:
+            return 0.0
+        return self.mass_flow_rate
+
+    def get_propellant_remaining(self, time):
+        if time <= 0:
+            return 1.0
+        elif time >= self.burn_time:
+            return 0.0
+        else:
+            return max(0.0, 1.0 - time / self.burn_time)
+
+    def perturb_for_monte_carlo(self, random_state=None):
+        if random_state is None:
+            random_state = np.random.RandomState()
+
+        thrust_mult = random_state.normal(1.0, self.thrust_uncertainty)
+        mass_flow_mult = random_state.normal(1.0, self.mass_flow_uncertainty)
+
+        perturbed = LiquidMotor(
+            self.name + "_perturbed",
+            thrust_vacuum=self.thrust_vacuum * thrust_mult,
+            thrust_sea_level=self.thrust_sea_level * thrust_mult,
+            mass_flow_rate=self.mass_flow_rate * mass_flow_mult,
+            propellant_mass=self.propellant_mass,
+        )
+
+        return perturbed

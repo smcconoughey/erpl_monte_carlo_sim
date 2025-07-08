@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 from rocket import Rocket
-from motor import SolidMotor
+from motor import SolidMotor, LiquidMotor
 from environment import StandardAtmosphere, WindModel
 from simulator import FlightSimulator
 from monte_carlo import MonteCarloAnalyzer
@@ -15,8 +15,8 @@ def main():
     # Create rocket configuration
     rocket = Rocket("Sounding Rocket")
     
-    # Create motor
-    motor = SolidMotor("Solid Motor")
+    # Create motor (liquid in this example)
+    motor = LiquidMotor("Liquid Motor")
     
     # Create environment models
     atmosphere = StandardAtmosphere()
