@@ -40,6 +40,12 @@ class Rocket:
             'cd0': [0.4, 0.42, 0.48, 0.65, 0.52, 0.45, 0.40, 0.38],
             'cda': [1.2, 1.25, 1.3, 1.4, 1.35, 1.25, 1.2, 1.15]  # per radian
         }
+
+        # Simple dynamic CP shift with Mach number (forward negative)
+        self.CP_shift_data = {
+            'mach': [0.0, 0.8, 1.0, 1.2, 2.0, 3.0],
+            'cp_shift': [0.0, -0.05, -0.1, -0.05, 0.0, 0.0]  # meters
+        }
         
         # Center of pressure calculation (Barrowman method)
         self.cp_location = self._calculate_center_of_pressure()
@@ -78,6 +84,11 @@ class Rocket:
             X_cp = self.length / 2
             
         return X_cp
+
+    def get_dynamic_cp(self, mach, alpha=0.0):
+        """Return center of pressure shifted with Mach number."""
+        shift = interpolate_1d(mach, self.CP_shift_data['mach'], self.CP_shift_data['cp_shift'])
+        return self.cp_location + shift
     
     def get_mass_properties(self, propellant_fraction_remaining):
         """Get current mass properties based on propellant remaining."""
@@ -118,8 +129,9 @@ class Rocket:
         cl_alpha = 2.0  # per radian
         cl = cl_alpha * alpha
         
-        # Moment coefficient
-        static_margin = self.cp_location - self.center_of_mass_dry
+        # Moment coefficient using dynamic CP
+        cp_current = self.get_dynamic_cp(mach, alpha)
+        static_margin = cp_current - self.center_of_mass_dry
         cm_alpha = -cl_alpha * static_margin / self.reference_diameter
         cm = cm_alpha * alpha
         
@@ -127,6 +139,7 @@ class Rocket:
             'cd': cd,
             'cl': cl,
             'cm': cm,
+            'cp': cp_current,
             'cn': cl,  # Normal force coefficient
             'cy': 0.0,  # Side force coefficient (simplified)
             'croll': 0.0,  # Roll moment coefficient

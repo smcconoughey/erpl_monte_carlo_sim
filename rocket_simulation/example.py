@@ -100,7 +100,7 @@ def plot_single_simulation(results, output_dir=None):
 
     # Center of pressure and CG over time
     axes[2, 0].plot(results['time'], results['center_of_mass'], label='CG')
-    axes[2, 0].axhline(results['cp_location'], color='r', linestyle='--', label='CP')
+    axes[2, 0].plot(results['time'], results['cp_location_dynamic'], '--', color='r', label='CP')
     axes[2, 0].set_xlabel('Time (s)')
     axes[2, 0].set_ylabel('Position along body (m)')
     axes[2, 0].set_title('CP and CG vs Time')
