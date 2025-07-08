@@ -86,4 +86,22 @@ def sideslip_angle(velocity_body):
     V_total = np.linalg.norm(velocity_body)
     if V_total < 1e-6:
         return 0.0
-    return np.arctan2(velocity_body[1], velocity_body[0]) 
+    return np.arctan2(velocity_body[1], velocity_body[0])
+
+
+def to_serializable(obj):
+    """Recursively convert numpy types to Python types for JSON serialization."""
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.floating, np.integer)):
+        return obj.item()
+    if isinstance(obj, dict):
+        return {k: to_serializable(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [to_serializable(v) for v in obj]
+    return obj
+
+
+def object_to_serializable_dict(obj):
+    """Convert an object's __dict__ to a JSON-serializable dictionary."""
+    return {k: to_serializable(v) for k, v in obj.__dict__.items()}

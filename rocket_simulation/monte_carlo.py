@@ -315,6 +315,25 @@ class MonteCarloAnalyzer:
         apogee_altitudes = [r['apogee_altitude'] for r in valid_results]
         ranges = [r['range'] for r in valid_results]
         flight_times = [r['flight_time'] for r in valid_results]
+
+        # Determine ranges of Monte Carlo parameters actually used
+        param_ranges = {}
+        for r in valid_results:
+            params = r.get('parameters', {})
+            for key, val in params.items():
+                arr = np.array(val)
+                if key not in param_ranges:
+                    param_ranges[key] = {
+                        'min': arr.astype(float),
+                        'max': arr.astype(float),
+                    }
+                else:
+                    param_ranges[key]['min'] = np.minimum(param_ranges[key]['min'], arr)
+                    param_ranges[key]['max'] = np.maximum(param_ranges[key]['max'], arr)
+
+        for key in param_ranges:
+            param_ranges[key]['min'] = param_ranges[key]['min'].tolist()
+            param_ranges[key]['max'] = param_ranges[key]['max'].tolist()
         
         # Calculate statistics
         analysis = {
@@ -341,7 +360,8 @@ class MonteCarloAnalyzer:
                 'max': float(np.max(flight_times)),
                 'percentiles': np.percentile(flight_times, [5, 25, 50, 75, 95]).tolist()
             },
-            'results': valid_results
+            'results': valid_results,
+            'parameter_ranges_observed': param_ranges
         }
         
         return analysis
@@ -365,7 +385,12 @@ class MonteCarloAnalyzer:
             'apogee_altitude_stats': analysis['apogee_altitude'],
             'range_stats': analysis['range'],
             'flight_time_stats': analysis['flight_time'],
-            'uncertainty_parameters': self.uncertainty_params
+            'uncertainty_parameters': self.uncertainty_params,
+            'parameter_ranges_observed': analysis.get('parameter_ranges_observed'),
+            'rocket_parameters': object_to_serializable_dict(self.rocket),
+            'motor_parameters': object_to_serializable_dict(self.motor),
+            'atmosphere_parameters': object_to_serializable_dict(self.atmosphere),
+            'wind_model_parameters': object_to_serializable_dict(self.wind_model)
         }
         
         if 'performance' in analysis:
