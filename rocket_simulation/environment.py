@@ -82,11 +82,28 @@ class WindModel:
         else:
             return reference_wind_speed * (altitude / reference_altitude)**self.power_law_exponent
     
-    def generate_stochastic_profile(self, altitudes, base_wind_speed, base_wind_direction=0.0, 
-                                   random_state=None):
-        """Generate stochastic wind profile with turbulence."""
+    def generate_stochastic_profile(self, altitudes, base_wind_speed,
+                                   base_wind_direction=None, random_state=None):
+        """Generate stochastic wind profile with turbulence.
+
+        Parameters
+        ----------
+        altitudes : array-like
+            Altitudes at which to generate the wind profile.
+        base_wind_speed : float
+            Reference wind speed at the surface (m/s).
+        base_wind_direction : float or None, optional
+            Mean wind direction in radians. If ``None`` (default), the
+            direction is chosen randomly from 0 to ``2π``.
+        random_state : ``np.random.RandomState`` or ``None``
+            Random state for reproducibility.
+        """
+
         if random_state is None:
             random_state = np.random.RandomState()
+
+        if base_wind_direction is None:
+            base_wind_direction = random_state.uniform(0.0, 2 * np.pi)
         
         n_points = len(altitudes)
         wind_profile = np.zeros((n_points, 3))  # [u, v, w] components
