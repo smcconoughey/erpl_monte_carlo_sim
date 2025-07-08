@@ -38,6 +38,11 @@ def main():
     results = simulator.simulate_flight(initial_conditions)
     
     # Print results
+    print(f"Rail exit speed: {results['rail_exit_speed']:.2f} m/s")
+    print(
+        f"Rail AoA: {np.degrees(results['rail_exit_angle_of_attack']):.2f} deg, "
+        f"sideslip: {np.degrees(results['rail_exit_sideslip']):.2f} deg"
+    )
     print(f"Apogee altitude: {results['apogee_altitude']:.1f} m ({results['apogee_altitude']*3.28084:.1f} ft)")
     print(f"Range: {results['range']:.1f} m")
     print(f"Flight time: {results['flight_time']:.1f} s")

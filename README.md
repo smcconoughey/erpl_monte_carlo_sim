@@ -32,6 +32,7 @@ initial_conditions = {
 
 # Single simulation
 results = simulator.simulate_flight(initial_conditions)
+print(f"Rail exit speed: {results['rail_exit_speed']:.1f} m/s")
 
 # Monte Carlo analysis
 monte_carlo = MonteCarloAnalyzer(rocket, motor, atmosphere, wind_model)
@@ -64,3 +65,4 @@ python rocket_simulation/example.py
 - Parallel processing for Monte Carlo simulations
 - Comprehensive visualization and analysis tools
 - 3D trajectory plotting and CP/CG tracking
+- Detailed launch metrics including rail exit speed and aerodynamic angles
