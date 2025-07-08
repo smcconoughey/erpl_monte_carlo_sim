@@ -128,8 +128,10 @@ class SolidMotor:
 class LiquidMotor:
     """Simple liquid rocket engine with altitude-dependent performance."""
 
-    def __init__(self, name="Liquid Motor", thrust_vacuum=10000.0,
-                 thrust_sea_level=9000.0, mass_flow_rate=5.0,
+    def __init__(self, name="Liquid Motor",
+                 thrust_vacuum=2590 * 4.44822,  # N (2,590 lbf)
+                 thrust_sea_level=2290 * 4.44822,  # N (2,290 lbf)
+                 mass_flow_rate=4.26,  # kg/s (9.4 lb/s)
                  propellant_mass=100.0):
         self.name = name
 
