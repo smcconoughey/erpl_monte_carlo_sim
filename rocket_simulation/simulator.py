@@ -29,6 +29,13 @@ class FlightSimulator:
         self.wind_profile = None
         self.altitude_profile = None
 
+        # Simple rotational damping coefficients (N*m*s/rad)
+        self.pitch_damping = 50.0
+        self.yaw_damping = 50.0
+
+        # Parachute deployment state
+        self.parachute_deployed = False
+
     def _simulate_launch_rail(self, state, rail_length=18.288):
         """Simulate simple guided motion along a launch rail.
 
@@ -253,8 +260,20 @@ class FlightSimulator:
         thrust = self.motor.get_thrust(t, atm_props['pressure'])
         forces_body[0] += thrust  # Thrust along x-axis
         
+        # Deploy parachute when descending below target altitude
+        if (not self.parachute_deployed
+                and altitude <= self.rocket.parachute_deployment_altitude
+                and velocity[2] < 0):
+            self.parachute_deployed = True
+
         # Aerodynamic forces
-        if q_dynamic > 0:
+        if self.parachute_deployed:
+            rel_speed = np.linalg.norm(velocity_body)
+            if rel_speed > 0:
+                drag = 0.5 * density * rel_speed ** 2 * self.rocket.parachute_cd
+                drag *= self.rocket.parachute_area
+                forces_body += -drag * velocity_body / rel_speed
+        elif q_dynamic > 0:
             aero_coeffs = self.rocket.get_aerodynamic_coefficients(
                 mach, alpha, beta, mass_props
             )
@@ -287,7 +306,11 @@ class FlightSimulator:
                 * self.rocket.reference_area
                 * self.rocket.reference_diameter
             )
-        
+
+        # Rotational damping about pitch/yaw axes
+        moments_body[1] += -self.pitch_damping * angular_velocity[1]
+        moments_body[2] += -self.yaw_damping * angular_velocity[2]
+
         # Transform forces to inertial frame
         forces_inertial = R_body_to_inertial @ forces_body
         
