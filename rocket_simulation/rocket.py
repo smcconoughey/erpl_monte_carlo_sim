@@ -14,16 +14,16 @@ class Rocket:
         # Geometric properties
         self.length = 7.62  # Total length (m)
         self.diameter = 0.219  # Body diameter (m) - 8.625 in
-        self.nose_length = 0.3  # Nose cone length (m)
-        self.fin_span = 0.15  # Fin span (m)
-        self.fin_root_chord = 0.2  # Fin root chord (m)
-        self.fin_tip_chord = 0.1  # Fin tip chord (m)
+        self.nose_length = 0.5  # Nose cone length (m)
+        self.fin_span = 0.4  # Fin span (m)
+        self.fin_root_chord = 0.3  # Fin root chord (m)
+        self.fin_tip_chord = 0.2  # Fin tip chord (m)
         self.fin_count = 4  # Number of fins
         
         # Mass properties (dry mass)
         self.dry_mass = 113.4  # kg (250 lb)
         self.propellant_mass = 63.5  # kg (140 lb)
-        self.center_of_mass_dry = 1.8  # m from nose
+        self.center_of_mass_dry = 4  # m from nose
         
         # Moments of inertia (dry, kg*m^2)
         self.Ixx_dry = 10.9  # Roll moment of inertia (scaled for larger mass/diameter)
@@ -45,9 +45,9 @@ class Rocket:
         self.cp_location = self._calculate_center_of_pressure()
         
         # Recovery system
-        self.parachute_area = 2.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
+        self.parachute_area = 5.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
         self.parachute_cd = 1.3
-        self.parachute_deployment_altitude = 1000  # m
+        self.parachute_deployment_altitude = 2000  # m
         
     def _calculate_center_of_pressure(self):
         """Calculate center of pressure using Barrowman equations."""
