@@ -62,7 +62,7 @@ class FlightSimulator:
             aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, 0.0)
             drag = 0.5 * density * speed ** 2 * aero_coeffs['cd'] * self.rocket.reference_area
 
-            thrust = self.motor.get_thrust(t)
+            thrust = self.motor.get_thrust(t, atm['pressure'])
             gravity = self.atmosphere.get_gravity(position[2])
             accel = (thrust - mass * gravity - drag) / mass
 
@@ -217,7 +217,7 @@ class FlightSimulator:
         moments_body = np.zeros(3)
         
         # Thrust force
-        thrust = self.motor.get_thrust(t)
+        thrust = self.motor.get_thrust(t, atm_props['pressure'])
         forces_body[0] += thrust  # Thrust along x-axis
         
         # Aerodynamic forces

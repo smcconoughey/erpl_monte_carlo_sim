@@ -7,15 +7,25 @@ from utils import interpolate_1d
 
 class SolidMotor:
     """Solid propellant motor model."""
-    
+
     def __init__(self, name="Solid Motor"):
         self.name = name
-        
+
         # Motor properties
         self.total_impulse = 156297  # N-s (35,122 lbs)
         self.burn_time = 15.0  # seconds
         self.propellant_mass = 63.5  # kg (140 lb)
         self.average_thrust = self.total_impulse / self.burn_time
+
+        # Thrust values at standard conditions (approximate)
+        # Provided data: 2,290 lbf sea level, 2,590 lbf in vacuum
+        self.thrust_sea_level = 2290 * 4.44822  # N
+        self.thrust_vacuum = 2590 * 4.44822  # N
+
+        # Nozzle exit area estimated from SL/vacuum difference
+        self.nozzle_exit_area = (
+            self.thrust_vacuum - self.thrust_sea_level
+        ) / 101325.0  # Pa
         
         # Thrust curve definition (time vs thrust)
         self.thrust_curve_time = np.array([
@@ -41,12 +51,29 @@ class SolidMotor:
         self.burn_time_uncertainty = 0.02  # 2% standard deviation
         self.total_impulse_uncertainty = 0.03  # 3% standard deviation
         
-    def get_thrust(self, time):
-        """Get thrust at given time."""
+    def get_thrust(self, time, ambient_pressure=None):
+        """Get thrust at given time.
+
+        Parameters
+        ----------
+        time : float
+            Time since motor ignition (s).
+        ambient_pressure : float, optional
+            Ambient pressure in Pascals. If provided, the thrust is adjusted
+            between sea level and vacuum values based on this pressure.
+        """
         if time < 0 or time > self.burn_time:
             return 0.0
-        
-        return interpolate_1d(time, self.thrust_curve_time, self.thrust_curve_thrust)
+
+        # Base thrust (sea level reference)
+        thrust_sl = interpolate_1d(time, self.thrust_curve_time, self.thrust_curve_thrust)
+
+        if ambient_pressure is None:
+            return thrust_sl
+
+        # Pressure correction using estimated nozzle exit area
+        pressure_correction = self.nozzle_exit_area * (101325.0 - ambient_pressure)
+        return thrust_sl + pressure_correction
     
     def get_mass_flow_rate(self, time):
         """Get mass flow rate at given time."""
@@ -77,6 +104,8 @@ class SolidMotor:
         thrust_multiplier = random_state.normal(1.0, self.thrust_uncertainty)
         perturbed_motor.thrust_curve_thrust = self.thrust_curve_thrust * thrust_multiplier
         perturbed_motor.average_thrust = self.average_thrust * thrust_multiplier
+        perturbed_motor.thrust_sea_level = self.thrust_sea_level * thrust_multiplier
+        perturbed_motor.thrust_vacuum = self.thrust_vacuum * thrust_multiplier
         
         # Perturb burn time
         burn_time_multiplier = random_state.normal(1.0, self.burn_time_uncertainty)
@@ -89,5 +118,8 @@ class SolidMotor:
         # Recalculate derived properties
         perturbed_motor.mass_flow_rate = 4.26 * thrust_multiplier  # Scale mass flow rate with thrust
         perturbed_motor.exhaust_velocity = perturbed_motor.average_thrust / perturbed_motor.mass_flow_rate
+
+        # Update nozzle exit area (assume linear with thrust multiplier)
+        perturbed_motor.nozzle_exit_area = self.nozzle_exit_area * thrust_multiplier
         
         return perturbed_motor 
