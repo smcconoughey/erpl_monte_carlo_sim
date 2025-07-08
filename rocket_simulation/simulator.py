@@ -255,38 +255,42 @@ class FlightSimulator:
         
         # Aerodynamic forces
         if q_dynamic > 0:
-            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, alpha, beta, mass_props)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(
+                mach, alpha, beta, mass_props
+            )
 
+            # Drag force opposite the direction of motion
+            drag_magnitude = q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area
             v_norm = np.linalg.norm(velocity_body)
             if v_norm > 1e-6:
-                v_hat = velocity_body / v_norm
+                drag_direction = -velocity_body / v_norm
+                forces_body += drag_magnitude * drag_direction
 
-                x_body = np.array([1.0, 0.0, 0.0])
-
-                lift_dir = np.cross(v_hat, np.cross(x_body, v_hat))
-                lift_norm = np.linalg.norm(lift_dir)
-                if lift_norm > 1e-6:
-                    lift_dir /= lift_norm
-                else:
-                    lift_dir = np.zeros(3)
-
-                side_dir = np.cross(v_hat, lift_dir)
-                side_norm = np.linalg.norm(side_dir)
-                if side_norm > 1e-6:
-                    side_dir /= side_norm
-                else:
-                    side_dir = np.zeros(3)
-
-                drag_force = -q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area * v_hat
-                lift_force = q_dynamic * aero_coeffs['cl'] * self.rocket.reference_area * lift_dir
-                side_force = q_dynamic * aero_coeffs['cy'] * self.rocket.reference_area * side_dir
-
-                forces_body += drag_force + lift_force + side_force
+            # Lift and side forces act along the body y/z axes
+            lift_force = q_dynamic * aero_coeffs['cl'] * self.rocket.reference_area
+            side_force = q_dynamic * aero_coeffs['cy'] * self.rocket.reference_area
+            forces_body[1] += side_force
+            forces_body[2] += lift_force
 
             # Aerodynamic moments
-            moments_body[0] += q_dynamic * aero_coeffs['croll'] * self.rocket.reference_area * self.rocket.reference_diameter
-            moments_body[1] += q_dynamic * aero_coeffs['cpitch'] * self.rocket.reference_area * self.rocket.reference_diameter
-            moments_body[2] += q_dynamic * aero_coeffs['cyaw'] * self.rocket.reference_area * self.rocket.reference_diameter
+            moments_body[0] += (
+                q_dynamic
+                * aero_coeffs['croll']
+                * self.rocket.reference_area
+                * self.rocket.reference_diameter
+            )
+            moments_body[1] += (
+                q_dynamic
+                * aero_coeffs['cpitch']
+                * self.rocket.reference_area
+                * self.rocket.reference_diameter
+            )
+            moments_body[2] += (
+                q_dynamic
+                * aero_coeffs['cyaw']
+                * self.rocket.reference_area
+                * self.rocket.reference_diameter
+            )
         
         # Transform forces to inertial frame
         forces_inertial = R_body_to_inertial @ forces_body
