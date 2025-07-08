@@ -23,7 +23,7 @@ class Rocket:
         # Mass properties (dry mass)
         self.dry_mass = 113.4  # kg (250 lb)
         self.propellant_mass = 63.5  # kg (140 lb)
-        self.center_of_mass_dry = 5  # m from nose
+        self.center_of_mass_dry = 5.8 # m from nose
         
         # Moments of inertia (dry, kg*m^2)
         self.Ixx_dry = 10.9  # Roll moment of inertia 
