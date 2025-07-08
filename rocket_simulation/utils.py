@@ -128,6 +128,39 @@ def sideslip_angle(velocity_body):
     return np.arctan2(velocity_body[1], velocity_body[0])
 
 
+def wind_to_body_matrix(alpha, beta):
+    """Rotation matrix from wind axes to body axes.
+
+    Parameters
+    ----------
+    alpha : float
+        Angle of attack (rad).
+    beta : float
+        Sideslip angle (rad).
+
+    Returns
+    -------
+    numpy.ndarray
+        3x3 rotation matrix that transforms vectors from the wind reference
+        frame (x along the relative wind) to the body frame.  Positive ``alpha``
+        corresponds to a nose-up rotation and positive ``beta`` corresponds to a
+        nose-right rotation.
+    """
+
+    ca = np.cos(alpha)
+    sa = np.sin(alpha)
+    cb = np.cos(beta)
+    sb = np.sin(beta)
+
+    return np.array(
+        [
+            [ca * cb, -sb, sa * cb],
+            [ca * sb, cb, sa * sb],
+            [-sa, 0.0, ca],
+        ]
+    )
+
+
 def to_serializable(obj):
     """Recursively convert numpy types to Python types for JSON serialization."""
     if isinstance(obj, np.ndarray):

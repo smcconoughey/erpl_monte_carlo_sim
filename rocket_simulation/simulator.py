@@ -259,18 +259,14 @@ class FlightSimulator:
                 mach, alpha, beta, mass_props
             )
 
-            # Drag force opposite the direction of motion
-            drag_magnitude = q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area
-            v_norm = np.linalg.norm(velocity_body)
-            if v_norm > 1e-6:
-                drag_direction = -velocity_body / v_norm
-                forces_body += drag_magnitude * drag_direction
+            # Aerodynamic forces in wind coordinates
+            drag = q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area
+            lift = q_dynamic * aero_coeffs['cl'] * self.rocket.reference_area
+            side = q_dynamic * aero_coeffs['cy'] * self.rocket.reference_area
 
-            # Lift and side forces act along the body y/z axes
-            lift_force = q_dynamic * aero_coeffs['cl'] * self.rocket.reference_area
-            side_force = q_dynamic * aero_coeffs['cy'] * self.rocket.reference_area
-            forces_body[1] += side_force
-            forces_body[2] += lift_force
+            # Transform from wind axes to body axes
+            R_wind_to_body = wind_to_body_matrix(alpha, beta)
+            forces_body += R_wind_to_body @ np.array([-drag, -side, -lift])
 
             # Aerodynamic moments
             moments_body[0] += (
