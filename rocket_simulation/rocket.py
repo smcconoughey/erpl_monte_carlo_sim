@@ -16,19 +16,19 @@ class Rocket:
         self.diameter = 0.219  # Body diameter (m) - 8.625 in
         self.nose_length = 0.2  # Nose cone length (m)
         self.fin_span = 0.2  # Fin span (m)
-        self.fin_root_chord = 0.25  # Fin root chord (m)
+        self.fin_root_chord = 0.20  # Fin root chord (m)
         self.fin_tip_chord = 0.1 # Fin tip chord (m)
         self.fin_count = 4  # Number of fins
         
         # Mass properties (dry mass)
         self.dry_mass = 113.4  # kg (250 lb)
         self.propellant_mass = 63.5  # kg (140 lb)
-        self.center_of_mass_dry = 5.8 # m from nose
+        self.center_of_mass_dry = 5.9 # m from nose
         
         # Moments of inertia (dry, kg*m^2)
-        self.Ixx_dry = 10.9  # Roll moment of inertia 
-        self.Iyy_dry = 36.3  # Pitch moment of inertia
-        self.Izz_dry = 36.3  # Yaw moment of inertia
+        self.Ixx_dry = 1.683   # Roll moment of inertia 
+        self.Iyy_dry = 971.9  # Pitch moment of inertia
+        self.Izz_dry = 971.693  # Yaw moment of inertia
         
         # Aerodynamic properties
         self.reference_area = np.pi * (self.diameter / 2)**2
@@ -51,7 +51,7 @@ class Rocket:
         self.cp_location = self._calculate_center_of_pressure()
         
         # Recovery system
-        self.parachute_area = 5.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
+        self.parachute_area = 20.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
         self.parachute_cd = 1.3
         self.parachute_deployment_altitude = 2000  # m
         
@@ -101,7 +101,7 @@ class Rocket:
                      current_propellant * propellant_cg) / total_mass
         
         # Update moments of inertia (simplified model)
-        propellant_length = 1.2  # m (scaled for larger propellant mass)
+        propellant_length = 2  # m 
         propellant_Ixx = current_propellant * (self.diameter / 4)**2
         propellant_Iyy = current_propellant * (propellant_length**2 / 12 + 
                                               (propellant_cg - current_cg)**2)
