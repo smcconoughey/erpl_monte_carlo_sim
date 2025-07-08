@@ -62,4 +62,5 @@ python rocket_simulation/example.py
 - Monte Carlo uncertainty propagation
 - Standard atmosphere and wind modeling
 - Parallel processing for Monte Carlo simulations
-- Comprehensive visualization and analysis tools 
+- Comprehensive visualization and analysis tools
+- 3D trajectory plotting and CP/CG tracking

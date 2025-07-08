@@ -264,6 +264,11 @@ class MonteCarloAnalyzer:
             results = simulator.simulate_flight(initial_conditions, wind_profile, altitude_profile)
             results['simulation_id'] = simulation_id
             results['parameters'] = params
+            results['trajectory'] = {
+                'time': results['time'],
+                'altitude': results['altitude'],
+                'position': results['position'].T
+            }
             return results
         except Exception as e:
             print(f"Simulation {simulation_id} failed: {e}")
@@ -519,5 +524,35 @@ class MonteCarloAnalyzer:
             plot_path = os.path.join(output_dir, 'monte_carlo_trajectories.png')
             plt.savefig(plot_path, dpi=300, bbox_inches='tight')
             print(f"Trajectory plots saved to: {plot_path}")
-        
-        # plt.show() 
+
+        # plt.show()
+
+    def plot_trajectory_cloud_3d(self, analysis, save_plots=True, max_trajectories=50):
+        """Plot 3D trajectories from Monte Carlo results."""
+        from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
+
+        fig = plt.figure(figsize=(10, 8))
+        ax = fig.add_subplot(111, projection='3d')
+
+        trajectories = analysis['results'][:max_trajectories]
+        for result in trajectories:
+            if 'trajectory' in result and 'position' in result['trajectory']:
+                pos = result['trajectory']['position']
+                x = pos[:, 0]
+                y = pos[:, 1]
+                z = pos[:, 2]
+                ax.plot(x, y, z, alpha=0.3, linewidth=0.5)
+
+        ax.set_xlabel('East Position (m)')
+        ax.set_ylabel('North Position (m)')
+        ax.set_zlabel('Altitude (m)')
+        ax.set_title(f'3D Trajectory Cloud ({len(trajectories)} trajectories)')
+        ax.grid(True, alpha=0.3)
+
+        if save_plots:
+            output_dir = self._create_output_directory()
+            plot_path = os.path.join(output_dir, 'monte_carlo_trajectories_3d.png')
+            plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+            print(f"3D trajectory plot saved to: {plot_path}")
+
+        # plt.show()
