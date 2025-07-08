@@ -30,7 +30,15 @@ class FlightSimulator:
         self.altitude_profile = None
 
     def _simulate_launch_rail(self, state, rail_length=18.288):
-        """Simulate simple guided motion along a launch rail."""
+        """Simulate simple guided motion along a launch rail.
+
+        Returns
+        -------
+        tuple
+            Updated state after leaving the rail, time at rail exit and a
+            dictionary with additional metrics such as exit velocity and
+            aerodynamic angles.
+        """
         position = state[0:3].copy()
         velocity = state[3:6].copy()
         quaternion = state[6:10]
@@ -70,7 +78,30 @@ class FlightSimulator:
         state[3:6] = velocity
         state[13] = prop_frac
 
-        return state, t
+        # Collect additional information about rail exit conditions
+        rail_info = {
+            'rail_exit_time': t,
+            'rail_exit_position': position.copy(),
+            'rail_exit_velocity': velocity.copy(),
+            'rail_exit_speed': float(np.linalg.norm(velocity)),
+            'rail_exit_euler': quaternion_to_euler(quaternion)
+        }
+
+        # Determine aerodynamic angles and wind at rail exit
+        if self.wind_profile is not None and self.altitude_profile is not None:
+            wind_vel = self.wind_model.get_wind_at_altitude(
+                position[2], self.wind_profile, self.altitude_profile
+            )
+        else:
+            wind_vel = np.array([0.0, 0.0, 0.0])
+
+        vel_rel = velocity - wind_vel
+        vel_body = quaternion_to_rotation_matrix(quaternion).T @ vel_rel
+        rail_info['rail_exit_angle_of_attack'] = angle_of_attack(vel_body)
+        rail_info['rail_exit_sideslip'] = sideslip_angle(vel_body)
+        rail_info['wind_at_exit'] = wind_vel
+
+        return state, t, rail_info
         
     def simulate_flight(self, initial_conditions, wind_profile=None, altitude_profile=None):
         """Simulate rocket flight with 6DOF dynamics."""
@@ -99,7 +130,7 @@ class FlightSimulator:
         self.altitude_profile = altitude_profile
         
         # Simulate guided launch rail phase
-        state0, rail_time = self._simulate_launch_rail(state0)
+        state0, rail_time, rail_info = self._simulate_launch_rail(state0)
 
         # Set up integration
         def dynamics(t, state):
@@ -125,6 +156,9 @@ class FlightSimulator:
 
         # Extract results and shift time to start at zero after rail
         results = self._extract_results(solution, time_offset=rail_time)
+
+        # Append rail exit information for diagnostics
+        results.update(rail_info)
         
         return results
     
