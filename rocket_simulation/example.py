@@ -51,7 +51,8 @@ def main():
     
     # Plot Monte Carlo results and get output directory
     output_dir = monte_carlo.plot_results(mc_results)
-    
+    monte_carlo.plot_trajectory_cloud_3d(mc_results, save_plots=True)
+
     # Plot single simulation results to the same directory
     plot_single_simulation(results, output_dir)
     
@@ -64,7 +65,7 @@ def plot_single_simulation(results, output_dir=None):
         output_dir = "simulation_plots"
     os.makedirs(output_dir, exist_ok=True)
     
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    fig, axes = plt.subplots(3, 2, figsize=(12, 14))
     
     # Altitude vs time
     axes[0, 0].plot(results['time'], results['altitude'])
@@ -96,6 +97,22 @@ def plot_single_simulation(results, output_dir=None):
     axes[1, 1].set_title('Euler Angles')
     axes[1, 1].legend()
     axes[1, 1].grid(True, alpha=0.3)
+
+    # Center of pressure and CG over time
+    axes[2, 0].plot(results['time'], results['center_of_mass'], label='CG')
+    axes[2, 0].axhline(results['cp_location'], color='r', linestyle='--', label='CP')
+    axes[2, 0].set_xlabel('Time (s)')
+    axes[2, 0].set_ylabel('Position along body (m)')
+    axes[2, 0].set_title('CP and CG vs Time')
+    axes[2, 0].legend()
+    axes[2, 0].grid(True, alpha=0.3)
+
+    # Angle of attack over time
+    axes[2, 1].plot(results['time'], np.degrees(results['angle_of_attack']))
+    axes[2, 1].set_xlabel('Time (s)')
+    axes[2, 1].set_ylabel('Angle (deg)')
+    axes[2, 1].set_title('Angle of Attack vs Time')
+    axes[2, 1].grid(True, alpha=0.3)
     
     plt.tight_layout()
     

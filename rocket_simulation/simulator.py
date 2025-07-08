@@ -224,10 +224,33 @@ class FlightSimulator:
         final_position = positions[:, -1]
         range_distance = np.sqrt(final_position[0]**2 + final_position[1]**2)
         
-        # Calculate Euler angles
+        # Calculate Euler angles and additional flight metrics
         euler_angles = np.zeros((3, len(time)))
+        center_of_mass = np.zeros(len(time))
+        angle_of_attack_hist = np.zeros(len(time))
+        sideslip_hist = np.zeros(len(time))
+        stability_margin = np.zeros(len(time))
+
         for i in range(len(time)):
             euler_angles[:, i] = quaternion_to_euler(quaternions[:, i])
+
+            # Center of mass and aerodynamic angles
+            mass_props = self.rocket.get_mass_properties(propellant_fractions[i])
+            center_of_mass[i] = mass_props['center_of_mass']
+            stability_margin[i] = (self.rocket.cp_location - center_of_mass[i]) / self.rocket.reference_diameter
+
+            alt = positions[2, i]
+            atm_props = self.atmosphere.get_properties(alt)
+            temp = atm_props['temperature']
+            if self.wind_profile is not None and self.altitude_profile is not None:
+                wind_vel = self.wind_model.get_wind_at_altitude(alt, self.wind_profile, self.altitude_profile)
+            else:
+                wind_vel = np.array([0.0, 0.0, 0.0])
+
+            vel_rel = velocities[:, i] - wind_vel
+            vel_body = quaternion_to_rotation_matrix(quaternions[:, i]).T @ vel_rel
+            angle_of_attack_hist[i] = angle_of_attack(vel_body)
+            sideslip_hist[i] = sideslip_angle(vel_body)
         
         results = {
             'time': time,
@@ -239,6 +262,11 @@ class FlightSimulator:
             'altitude': altitudes,
             'speed': speeds,
             'euler_angles': euler_angles,
+            'center_of_mass': center_of_mass,
+            'cp_location': self.rocket.cp_location,
+            'stability_margin': stability_margin,
+            'angle_of_attack': angle_of_attack_hist,
+            'sideslip_angle': sideslip_hist,
             'apogee_time': apogee_time,
             'apogee_altitude': apogee_altitude,
             'range': range_distance,
