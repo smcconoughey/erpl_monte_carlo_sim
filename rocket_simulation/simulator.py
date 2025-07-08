@@ -64,6 +64,9 @@ class FlightSimulator:
 
             speed = np.dot(velocity, direction)
             rel_vel = direction * speed - wind_vel
+            # Only the component of relative velocity along the rail
+            # contributes to axial drag; crosswind forces are reacted by the
+            # rail hardware and do not slow the rocket during this phase.
             rel_speed = np.dot(rel_vel, direction)
             mach = mach_number(rel_vel, temp)
             aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, 0.0, 0.0, mass_props)
@@ -253,20 +256,33 @@ class FlightSimulator:
         # Aerodynamic forces
         if q_dynamic > 0:
             aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, alpha, beta, mass_props)
-            
-            # Drag force (opposite to velocity)
-            drag_magnitude = q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area
-            if np.linalg.norm(velocity_body) > 0:
-                drag_direction = -velocity_body / np.linalg.norm(velocity_body)
-                forces_body += drag_magnitude * drag_direction
-            
-            # Lift and side forces (simplified)
-            lift_force = q_dynamic * aero_coeffs['cl'] * self.rocket.reference_area
-            side_force = q_dynamic * aero_coeffs['cy'] * self.rocket.reference_area
-            
-            forces_body[1] += side_force
-            forces_body[2] += lift_force
-            
+
+            v_norm = np.linalg.norm(velocity_body)
+            if v_norm > 1e-6:
+                v_hat = velocity_body / v_norm
+
+                x_body = np.array([1.0, 0.0, 0.0])
+
+                lift_dir = np.cross(v_hat, np.cross(x_body, v_hat))
+                lift_norm = np.linalg.norm(lift_dir)
+                if lift_norm > 1e-6:
+                    lift_dir /= lift_norm
+                else:
+                    lift_dir = np.zeros(3)
+
+                side_dir = np.cross(v_hat, lift_dir)
+                side_norm = np.linalg.norm(side_dir)
+                if side_norm > 1e-6:
+                    side_dir /= side_norm
+                else:
+                    side_dir = np.zeros(3)
+
+                drag_force = -q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area * v_hat
+                lift_force = q_dynamic * aero_coeffs['cl'] * self.rocket.reference_area * lift_dir
+                side_force = q_dynamic * aero_coeffs['cy'] * self.rocket.reference_area * side_dir
+
+                forces_body += drag_force + lift_force + side_force
+
             # Aerodynamic moments
             moments_body[0] += q_dynamic * aero_coeffs['croll'] * self.rocket.reference_area * self.rocket.reference_diameter
             moments_body[1] += q_dynamic * aero_coeffs['cpitch'] * self.rocket.reference_area * self.rocket.reference_diameter
