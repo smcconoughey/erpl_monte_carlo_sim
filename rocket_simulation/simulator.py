@@ -57,10 +57,17 @@ class FlightSimulator:
             density = atm['density']
             temp = atm['temperature']
 
+            if self.wind_profile is not None and self.altitude_profile is not None:
+                wind_vel = self.wind_model.get_wind_at_altitude(position[2], self.wind_profile, self.altitude_profile)
+            else:
+                wind_vel = np.array([0.0, 0.0, 0.0])
+
             speed = np.dot(velocity, direction)
-            mach = mach_number(direction * speed, temp)
-            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, 0.0)
-            drag = 0.5 * density * speed ** 2 * aero_coeffs['cd'] * self.rocket.reference_area
+            rel_vel = direction * speed - wind_vel
+            rel_speed = np.dot(rel_vel, direction)
+            mach = mach_number(rel_vel, temp)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, 0.0, 0.0, mass_props)
+            drag = 0.5 * density * rel_speed ** 2 * aero_coeffs['cd'] * self.rocket.reference_area
 
             thrust = self.motor.get_thrust(t, atm['pressure'])
             gravity = self.atmosphere.get_gravity(position[2])
@@ -245,7 +252,7 @@ class FlightSimulator:
         
         # Aerodynamic forces
         if q_dynamic > 0:
-            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, alpha, beta)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, alpha, beta, mass_props)
             
             # Drag force (opposite to velocity)
             drag_magnitude = q_dynamic * aero_coeffs['cd'] * self.rocket.reference_area
@@ -365,8 +372,9 @@ class FlightSimulator:
             vel_body = quaternion_to_rotation_matrix(quaternions[:, i]).T @ vel_rel
             mach = mach_number(vel_rel, temp)
             aoa = angle_of_attack(vel_body)
+            beta_angle = sideslip_angle(vel_body)
             cp_val = self.rocket.get_dynamic_cp(mach, aoa)
-            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, aoa)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, aoa, beta_angle, mass_props)
 
             q_dyn = 0.5 * atm_props['density'] * np.linalg.norm(vel_rel) ** 2
             drag_history[i] = q_dyn * aero_coeffs['cd'] * self.rocket.reference_area
@@ -379,7 +387,7 @@ class FlightSimulator:
             stability_margin[i] = (cp_val - center_of_mass[i]) / self.rocket.reference_diameter
 
             angle_of_attack_hist[i] = aoa
-            sideslip_hist[i] = sideslip_angle(vel_body)
+            sideslip_hist[i] = beta_angle
         
         results = {
             'time': time,
