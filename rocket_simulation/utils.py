@@ -86,4 +86,4 @@ def sideslip_angle(velocity_body):
     V_total = np.linalg.norm(velocity_body)
     if V_total < 1e-6:
         return 0.0
-    return np.arctan2(velocity_body[2], velocity_body[0]) 
+    return np.arctan2(velocity_body[1], velocity_body[0]) 

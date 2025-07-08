@@ -28,7 +28,7 @@ def main():
     # Define initial conditions for vertical launch
     initial_conditions = {
         'position': [0.0, 0.0, 10.0],  # Launch from 10m above ground
-        'velocity': [0, 0, 100.0],  # Start from rest
+        'velocity': [0, 0, 0.0],  # Start from rest
         'attitude': [0.0, -np.pi/2 + 0.02, 0.0],  # Nearly vertical (-90° + small angle)
         'angular_velocity': [0.0, 0.0, 0.0]  # No initial rotation
     }
