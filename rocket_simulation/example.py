@@ -127,5 +127,28 @@ def plot_single_simulation(results, output_dir=None):
     print(f"Single simulation plot saved to: {plot_filename}")
     plt.close()
 
-if __name__ == "__main__":
-    results, mc_results = main() 
+    # Plot thrust and thrust-to-weight ratio
+    atmosphere = StandardAtmosphere()
+    gravity = np.array([atmosphere.get_gravity(alt) for alt in results['altitude']])
+    twr = results['thrust'] / (results['mass'] * gravity)
+
+    fig2, axes2 = plt.subplots(2, 1, figsize=(8, 8))
+    axes2[0].plot(results['time'], results['thrust'])
+    axes2[0].set_xlabel('Time (s)')
+    axes2[0].set_ylabel('Thrust (N)')
+    axes2[0].set_title('Thrust vs Time')
+    axes2[0].grid(True, alpha=0.3)
+
+    axes2[1].plot(results['time'], twr)
+    axes2[1].set_xlabel('Time (s)')
+    axes2[1].set_ylabel('TWR')
+    axes2[1].set_title('Thrust-to-Weight Ratio vs Time')
+    axes2[1].grid(True, alpha=0.3)
+
+    plt.tight_layout()
+    twr_plot = os.path.join(output_dir, 'thrust_twr.png')
+    plt.savefig(twr_plot, dpi=300, bbox_inches='tight')
+    print(f"Thrust/TWR plot saved to: {twr_plot}")
+    plt.close()
+
+if __name__ == "__main__":    results, mc_results = main() 
