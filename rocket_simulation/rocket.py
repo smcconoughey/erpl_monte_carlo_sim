@@ -23,8 +23,8 @@ class Rocket:
         self.fin_cant_angle = 0.0   # Fin cant angle (rad)
         
         # Mass properties (dry mass)
-        self.dry_mass = 70.4  # kg (250 lb)
-        self.propellant_mass = 43.5  # kg (140 lb)
+        self.dry_mass = 100.4  # kg (250 lb)
+        self.propellant_mass = 63.5  # kg (140 lb)
         self.center_of_mass_dry = 4.9 # cg m from nose
         
         # Moments of inertia (dry, kg*m^2)
@@ -175,4 +175,5 @@ class Rocket:
     
     def get_stability_margin(self, propellant_fraction_remaining):
         """Calculate static stability margin."""
-        mass_props = self.get_mass_properties(propellant_fraction_remaining)        return (self.cp_location - mass_props['center_of_mass']) / self.reference_diameter 
+        mass_props = self.get_mass_properties(propellant_fraction_remaining)        
+        return (self.cp_location - mass_props['center_of_mass']) / self.reference_diameter 
