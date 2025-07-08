@@ -132,7 +132,7 @@ class LiquidMotor:
                  thrust_vacuum=2590 * 4.44822,  # N (2,590 lbf)
                  thrust_sea_level=2290 * 4.44822,  # N (2,290 lbf)
                  mass_flow_rate=4.26,  # kg/s (9.4 lb/s)
-                 propellant_mass=100.0):
+                 propellant_mass=63.5):
         self.name = name
 
         self.thrust_vacuum = thrust_vacuum
