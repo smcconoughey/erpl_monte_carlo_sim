@@ -10,7 +10,7 @@ __version__ = "1.0.0"
 __author__ = "Rocket Simulation Team"
 
 from rocket import Rocket
-from motor import SolidMotor
+from motor import SolidMotor, LiquidMotor
 from environment import StandardAtmosphere, WindModel
 from simulator import FlightSimulator
 from monte_carlo import MonteCarloAnalyzer
@@ -18,7 +18,8 @@ from utils import *
 
 __all__ = [
     'Rocket',
-    'SolidMotor', 
+    'SolidMotor',
+    'LiquidMotor',
     'StandardAtmosphere',
     'WindModel',
     'FlightSimulator',
