@@ -23,7 +23,7 @@ class Rocket:
         self.fin_cant_angle = 0.0   # Fin cant angle (rad)
         
         # Mass properties (dry mass)
-        self.dry_mass = 100.4  # kg (250 lb)
+        self.dry_mass = 113.4  # kg (250 lb)
         self.propellant_mass = 63.5  # kg (140 lb)
         self.center_of_mass_dry = 4.9 # cg m from nose
         
@@ -53,7 +53,7 @@ class Rocket:
         self.cp_location = self._calculate_center_of_pressure()
         
         # Recovery system
-        self.parachute_area = 20.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
+        self.parachute_area = 5.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
         self.parachute_cd = 1.3
         self.parachute_deployment_altitude = 2000  # m
         
