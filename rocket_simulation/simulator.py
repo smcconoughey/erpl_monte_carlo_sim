@@ -28,6 +28,49 @@ class FlightSimulator:
         # Initialize wind profiles
         self.wind_profile = None
         self.altitude_profile = None
+
+    def _simulate_launch_rail(self, state, rail_length=18.288):
+        """Simulate simple guided motion along a launch rail."""
+        position = state[0:3].copy()
+        velocity = state[3:6].copy()
+        quaternion = state[6:10]
+        prop_frac = state[13]
+
+        direction = quaternion_to_rotation_matrix(quaternion)[:, 0]
+
+        distance = 0.0
+        t = 0.0
+        dt = self.dt_initial
+
+        while distance < rail_length and t < self.motor.burn_time:
+            mass_props = self.rocket.get_mass_properties(prop_frac)
+            mass = mass_props['mass']
+            atm = self.atmosphere.get_properties(position[2])
+            density = atm['density']
+            temp = atm['temperature']
+
+            speed = np.dot(velocity, direction)
+            mach = mach_number(direction * speed, temp)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, 0.0)
+            drag = 0.5 * density * speed ** 2 * aero_coeffs['cd'] * self.rocket.reference_area
+
+            thrust = self.motor.get_thrust(t)
+            gravity = self.atmosphere.get_gravity(position[2])
+            accel = (thrust - mass * gravity - drag) / mass
+
+            speed += accel * dt
+            position += direction * speed * dt
+            distance += speed * dt
+            velocity = direction * speed
+
+            t += dt
+            prop_frac = self.motor.get_propellant_remaining(t)
+
+        state[0:3] = position
+        state[3:6] = velocity
+        state[13] = prop_frac
+
+        return state, t
         
     def simulate_flight(self, initial_conditions, wind_profile=None, altitude_profile=None):
         """Simulate rocket flight with 6DOF dynamics."""
@@ -55,6 +98,9 @@ class FlightSimulator:
         self.wind_profile = wind_profile
         self.altitude_profile = altitude_profile
         
+        # Simulate guided launch rail phase
+        state0, rail_time = self._simulate_launch_rail(state0)
+
         # Set up integration
         def dynamics(t, state):
             return self._rocket_dynamics(t, state)
@@ -67,8 +113,8 @@ class FlightSimulator:
         
         # Solve ODE
         solution = solve_ivp(
-            dynamics, 
-            [0, self.max_time], 
+            dynamics,
+            [rail_time, self.max_time],
             state0,
             method='RK45',
             rtol=self.rtol,
@@ -76,9 +122,9 @@ class FlightSimulator:
             events=ground_impact,
             dense_output=True
         )
-        
-        # Extract results
-        results = self._extract_results(solution)
+
+        # Extract results and shift time to start at zero after rail
+        results = self._extract_results(solution, time_offset=rail_time)
         
         return results
     
@@ -199,9 +245,9 @@ class FlightSimulator:
         
         return state_dot
     
-    def _extract_results(self, solution):
+    def _extract_results(self, solution, time_offset=0.0):
         """Extract and organize simulation results."""
-        time = solution.t
+        time = solution.t - time_offset
         states = solution.y
         
         # Extract state components
@@ -230,6 +276,7 @@ class FlightSimulator:
         angle_of_attack_hist = np.zeros(len(time))
         sideslip_hist = np.zeros(len(time))
         stability_margin = np.zeros(len(time))
+        cp_history = np.zeros(len(time))
 
         for i in range(len(time)):
             euler_angles[:, i] = quaternion_to_euler(quaternions[:, i])
@@ -237,7 +284,6 @@ class FlightSimulator:
             # Center of mass and aerodynamic angles
             mass_props = self.rocket.get_mass_properties(propellant_fractions[i])
             center_of_mass[i] = mass_props['center_of_mass']
-            stability_margin[i] = (self.rocket.cp_location - center_of_mass[i]) / self.rocket.reference_diameter
 
             alt = positions[2, i]
             atm_props = self.atmosphere.get_properties(alt)
@@ -249,7 +295,13 @@ class FlightSimulator:
 
             vel_rel = velocities[:, i] - wind_vel
             vel_body = quaternion_to_rotation_matrix(quaternions[:, i]).T @ vel_rel
-            angle_of_attack_hist[i] = angle_of_attack(vel_body)
+            mach = mach_number(vel_rel, temp)
+            aoa = angle_of_attack(vel_body)
+            cp_val = self.rocket.get_dynamic_cp(mach, aoa)
+            cp_history[i] = cp_val
+            stability_margin[i] = (cp_val - center_of_mass[i]) / self.rocket.reference_diameter
+
+            angle_of_attack_hist[i] = aoa
             sideslip_hist[i] = sideslip_angle(vel_body)
         
         results = {
@@ -263,6 +315,7 @@ class FlightSimulator:
             'speed': speeds,
             'euler_angles': euler_angles,
             'center_of_mass': center_of_mass,
+            'cp_location_dynamic': cp_history,
             'cp_location': self.rocket.cp_location,
             'stability_margin': stability_margin,
             'angle_of_attack': angle_of_attack_hist,
