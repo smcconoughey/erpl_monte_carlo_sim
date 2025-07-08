@@ -111,7 +111,7 @@ class FlightSimulator:
         
         # Initial position
         state0[0:3] = initial_conditions.get('position', [0.0, 0.0, 0.0])
-        
+
         # Initial velocity
         state0[3:6] = initial_conditions.get('velocity', [0.0, 0.0, 0.0])
         
@@ -121,7 +121,15 @@ class FlightSimulator:
         
         # Initial angular velocity
         state0[10:13] = initial_conditions.get('angular_velocity', [0.0, 0.0, 0.0])
-        
+
+        # Record the exact initial conditions used
+        initial_conditions_used = {
+            'position': state0[0:3].tolist(),
+            'velocity': state0[3:6].tolist(),
+            'attitude': initial_euler,
+            'angular_velocity': state0[10:13].tolist(),
+        }
+
         # Initial propellant fraction
         state0[13] = 1.0
         
@@ -159,7 +167,22 @@ class FlightSimulator:
 
         # Append rail exit information for diagnostics
         results.update(rail_info)
-        
+
+        # Include metadata for debugging
+        results['initial_conditions'] = initial_conditions_used
+        results['rocket_parameters'] = object_to_serializable_dict(self.rocket)
+        results['motor_parameters'] = object_to_serializable_dict(self.motor)
+        results['simulation_assumptions'] = {
+            'max_time': self.max_time,
+            'dt_initial': self.dt_initial,
+            'rtol': self.rtol,
+            'atol': self.atol,
+            'rail_length': 18.288,
+        }
+        if wind_profile is not None and altitude_profile is not None:
+            results['wind_profile'] = wind_profile
+            results['altitude_profile'] = altitude_profile
+
         return results
     
     def _rocket_dynamics(self, t, state):
@@ -307,6 +330,13 @@ class FlightSimulator:
         # Calculate Euler angles and additional flight metrics
         euler_angles = np.zeros((3, len(time)))
         center_of_mass = np.zeros(len(time))
+        mass_history = np.zeros(len(time))
+        moi_history = np.zeros((3, len(time)))  # Ixx, Iyy, Izz
+        thrust_history = np.zeros(len(time))
+        drag_history = np.zeros(len(time))
+        coeff_cd = np.zeros(len(time))
+        coeff_cl = np.zeros(len(time))
+        coeff_cm = np.zeros(len(time))
         angle_of_attack_hist = np.zeros(len(time))
         sideslip_hist = np.zeros(len(time))
         stability_margin = np.zeros(len(time))
@@ -315,9 +345,13 @@ class FlightSimulator:
         for i in range(len(time)):
             euler_angles[:, i] = quaternion_to_euler(quaternions[:, i])
 
-            # Center of mass and aerodynamic angles
+            # Mass properties and aerodynamic angles
             mass_props = self.rocket.get_mass_properties(propellant_fractions[i])
             center_of_mass[i] = mass_props['center_of_mass']
+            mass_history[i] = mass_props['mass']
+            moi_history[0, i] = mass_props['Ixx']
+            moi_history[1, i] = mass_props['Iyy']
+            moi_history[2, i] = mass_props['Izz']
 
             alt = positions[2, i]
             atm_props = self.atmosphere.get_properties(alt)
@@ -332,6 +366,15 @@ class FlightSimulator:
             mach = mach_number(vel_rel, temp)
             aoa = angle_of_attack(vel_body)
             cp_val = self.rocket.get_dynamic_cp(mach, aoa)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, aoa)
+
+            q_dyn = 0.5 * atm_props['density'] * np.linalg.norm(vel_rel) ** 2
+            drag_history[i] = q_dyn * aero_coeffs['cd'] * self.rocket.reference_area
+            thrust_history[i] = self.motor.get_thrust(time[i], atm_props['pressure'])
+            coeff_cd[i] = aero_coeffs['cd']
+            coeff_cl[i] = aero_coeffs['cl']
+            coeff_cm[i] = aero_coeffs['cm']
+
             cp_history[i] = cp_val
             stability_margin[i] = (cp_val - center_of_mass[i]) / self.rocket.reference_diameter
 
@@ -345,12 +388,21 @@ class FlightSimulator:
             'quaternion': quaternions,
             'angular_velocity': angular_velocities,
             'propellant_fraction': propellant_fractions,
+            'mass': mass_history,
+            'moments_of_inertia': moi_history,
             'altitude': altitudes,
             'speed': speeds,
             'euler_angles': euler_angles,
             'center_of_mass': center_of_mass,
+            'thrust': thrust_history,
+            'drag': drag_history,
+            'cd': coeff_cd,
+            'cl': coeff_cl,
+            'cm': coeff_cm,
             'cp_location_dynamic': cp_history,
             'cp_location': self.rocket.cp_location,
+            'thrust_curve_time': getattr(self.motor, 'thrust_curve_time', None),
+            'thrust_curve_thrust': getattr(self.motor, 'thrust_curve_thrust', None),
             'stability_margin': stability_margin,
             'angle_of_attack': angle_of_attack_hist,
             'sideslip_angle': sideslip_hist,
