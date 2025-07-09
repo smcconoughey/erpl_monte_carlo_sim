@@ -63,9 +63,11 @@ python rocket_simulation/example.py
 - Monte Carlo uncertainty propagation
 - Standard atmosphere and wind modeling, with the ability to load
   altitude-resolved wind profiles from CSV files
+  and add stochastic perturbations for Monte Carlo analysis
 - Parallel processing for Monte Carlo simulations
 - Comprehensive visualization and analysis tools
 - 3D trajectory plotting and CP/CG tracking
 - Detailed launch metrics including rail exit speed and aerodynamic angles
 - Separate power-on and power-off drag modeling
 - Simple parachute deployment logic to terminate free-fall
+

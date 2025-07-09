@@ -22,5 +22,4 @@ __all__ = [
     'LiquidMotor',
     'StandardAtmosphere',
     'WindModel',
-    'FlightSimulator',
-    'MonteCarloAnalyzer'] 
+    'FlightSimulator',] 

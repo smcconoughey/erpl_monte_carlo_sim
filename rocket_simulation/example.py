@@ -57,6 +57,8 @@ def main():
     monte_carlo = MonteCarloAnalyzer(rocket, motor, atmosphere, wind_model)
     monte_carlo.base_altitude_profile = altitude_profile
     monte_carlo.base_wind_profile = wind_profile
+    # Each Monte Carlo run will perturb this forecast using the sampled wind
+    # parameters and turbulence model
     
     # Run with fewer samples for example (increase for production)
     mc_results = monte_carlo.run_monte_carlo(initial_conditions, n_samples=50)
@@ -159,3 +161,4 @@ def plot_single_simulation(results, output_dir=None):
     plt.close()
 
 if __name__ == "__main__":    results, mc_results = main() 
+

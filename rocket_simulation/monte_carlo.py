@@ -254,12 +254,22 @@ class MonteCarloAnalyzer:
         # Create perturbed atmosphere
         perturbed_atmosphere = self._perturb_atmosphere(params)
         
-        # Generate wind profile.  If a base profile has been provided, reuse it
-        # for every simulation to mimic a deterministic forecast.  Otherwise a
-        # stochastic profile is generated as before.
+        # Generate wind profile.  If a base profile has been provided, use it as
+        # the mean forecast and add stochastic perturbations for each Monte
+        # Carlo run.  Otherwise a synthetic profile is created from scratch.
         if self.base_wind_profile is not None and self.base_altitude_profile is not None:
             altitude_profile = self.base_altitude_profile
-            wind_profile = self.base_wind_profile
+            base_profile = self.base_wind_profile
+            wind_profile = self.wind_model.perturb_wind_profile(
+                altitude_profile,
+                base_profile,
+                random_state=np.random.RandomState(params['random_seed'])
+            )
+            # Apply a uniform offset using the sampled wind speed/direction
+            offset_u = params['wind_speed'] * np.cos(params['wind_direction'])
+            offset_v = params['wind_speed'] * np.sin(params['wind_direction'])
+            wind_profile[:, 0] += offset_u
+            wind_profile[:, 1] += offset_v
         else:
             altitude_profile = np.linspace(0, 25000, 100)  # Up to 25 km
             wind_profile = self.wind_model.generate_stochastic_profile(
@@ -603,3 +613,4 @@ class MonteCarloAnalyzer:
             print(f"3D trajectory plot saved to: {plot_path}")
 
         # plt.show()
+
