@@ -28,7 +28,7 @@ class Rocket:
         self.center_of_mass_dry = 4.9 # cg m from nose
         
         # Moments of inertia (dry, kg*m^2)
-        self.Ixx_dry = 1.683   # Roll moment of inertia 
+        self.Ixx_dry = 45   # Roll moment of inertia 
         self.Iyy_dry = 971.9  # Pitch moment of inertia
         self.Izz_dry = 971.693  # Yaw moment of inertia
         
@@ -53,9 +53,9 @@ class Rocket:
         self.cp_location = self._calculate_center_of_pressure()
         
         # Recovery system
-        self.parachute_area = 5.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
-        self.parachute_cd = 1.3
-        self.parachute_deployment_altitude = 2000  # m
+        self.parachute_area = 15.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
+        self.parachute_cd = 2.0
+        self.parachute_deployment_altitude = 500  # m
         
     def _calculate_center_of_pressure(self):
         """Calculate center of pressure using Barrowman equations."""

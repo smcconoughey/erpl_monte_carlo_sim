@@ -112,7 +112,21 @@ class WindModel:
         base_u = base_wind_speed * np.cos(base_wind_direction)
         base_v = base_wind_speed * np.sin(base_wind_direction)
         
-        for i, altitude in enumerate(altitudes):
+        # Initialize first point separately to avoid correlation artifacts
+        altitude = altitudes[0]
+        wind_speed = self.power_law_profile(altitude, base_wind_speed)
+        wind_u = wind_speed * np.cos(base_wind_direction)
+        wind_v = wind_speed * np.sin(base_wind_direction)
+        
+        turbulence_scale = self.turbulence_intensity * np.exp(-altitude / 2000.0)
+        wind_profile[0, 0] = wind_u + random_state.normal(0, turbulence_scale)
+        wind_profile[0, 1] = wind_v + random_state.normal(0, turbulence_scale)
+        wind_profile[0, 2] = random_state.normal(0, turbulence_scale * 0.3)  # Reduced vertical turbulence
+        
+        # Generate remaining points with proper correlation
+        for i in range(1, n_points):
+            altitude = altitudes[i]
+            
             # Power law base wind
             wind_speed = self.power_law_profile(altitude, base_wind_speed)
             wind_u = wind_speed * np.cos(base_wind_direction)
@@ -121,21 +135,27 @@ class WindModel:
             # Add turbulence (decreases with altitude)
             turbulence_scale = self.turbulence_intensity * np.exp(-altitude / 2000.0)
             
-            # Correlated turbulence (simple model)
-            if i > 0:
-                correlation_factor = np.exp(-(altitudes[i] - altitudes[i-1]) / 
-                                          self.correlation_length)
-                
-                wind_profile[i, 0] = wind_u + correlation_factor * wind_profile[i-1, 0] + \
-                                   random_state.normal(0, turbulence_scale * np.sqrt(1 - correlation_factor**2))
-                wind_profile[i, 1] = wind_v + correlation_factor * wind_profile[i-1, 1] + \
-                                   random_state.normal(0, turbulence_scale * np.sqrt(1 - correlation_factor**2))
-                wind_profile[i, 2] = correlation_factor * wind_profile[i-1, 2] + \
-                                   random_state.normal(0, turbulence_scale * np.sqrt(1 - correlation_factor**2))
-            else:
-                wind_profile[i, 0] = wind_u + random_state.normal(0, turbulence_scale)
-                wind_profile[i, 1] = wind_v + random_state.normal(0, turbulence_scale)
-                wind_profile[i, 2] = random_state.normal(0, turbulence_scale)
+            # Correlated turbulence with improved stability
+            altitude_diff = max(altitudes[i] - altitudes[i-1], 1e-6)  # Prevent division by zero
+            correlation_factor = np.exp(-altitude_diff / self.correlation_length)
+            correlation_factor = np.clip(correlation_factor, 0.1, 0.95)  # Limit correlation range
+            
+            # Separate turbulence components from mean wind
+            prev_turbulence_u = wind_profile[i-1, 0] - (self.power_law_profile(altitudes[i-1], base_wind_speed) * np.cos(base_wind_direction))
+            prev_turbulence_v = wind_profile[i-1, 1] - (self.power_law_profile(altitudes[i-1], base_wind_speed) * np.sin(base_wind_direction))
+            prev_turbulence_w = wind_profile[i-1, 2]
+            
+            # Apply correlation to turbulence components only
+            turbulence_variance = turbulence_scale * np.sqrt(max(1 - correlation_factor**2, 0.01))
+            
+            new_turbulence_u = correlation_factor * prev_turbulence_u + random_state.normal(0, turbulence_variance)
+            new_turbulence_v = correlation_factor * prev_turbulence_v + random_state.normal(0, turbulence_variance)
+            new_turbulence_w = correlation_factor * prev_turbulence_w + random_state.normal(0, turbulence_variance * 0.3)
+            
+            # Combine mean wind with turbulence
+            wind_profile[i, 0] = wind_u + new_turbulence_u
+            wind_profile[i, 1] = wind_v + new_turbulence_v
+            wind_profile[i, 2] = new_turbulence_w
         
         return wind_profile
     
