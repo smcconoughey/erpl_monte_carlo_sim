@@ -395,11 +395,20 @@ class MonteCarloAnalyzer:
         
         if 'performance' in analysis:
             report['performance'] = analysis['performance']
-        
+
         # Save JSON report
         with open(os.path.join(output_dir, 'monte_carlo_report.json'), 'w') as f:
             json.dump(report, f, indent=2)
-        
+
+        # Save each simulation result to a separate JSON file for detailed analysis
+        sims_dir = os.path.join(output_dir, 'simulation_results')
+        os.makedirs(sims_dir, exist_ok=True)
+        for result in analysis.get('results', []):
+            sim_id = result.get('simulation_id', len(os.listdir(sims_dir)))
+            filename = os.path.join(sims_dir, f'sim_{sim_id}.json')
+            with open(filename, 'w') as sf:
+                json.dump(to_serializable(result), sf)
+
         # Save human-readable report
         with open(os.path.join(output_dir, 'monte_carlo_report.txt'), 'w') as f:
             f.write("Monte Carlo Analysis Report\n")
