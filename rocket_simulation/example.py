@@ -21,6 +21,11 @@ def main():
     # Create environment models
     atmosphere = StandardAtmosphere()
     wind_model = WindModel()
+
+    # Load a realistic wind profile from CSV (e.g. exported from a weather
+    # model).  The provided sample is simplistic but demonstrates the API.
+    wind_file = os.path.join(os.path.dirname(__file__), 'sample_wind.csv')
+    altitude_profile, wind_profile = wind_model.load_wind_profile_from_csv(wind_file)
     
     # Create simulator
     simulator = FlightSimulator(rocket, motor, atmosphere, wind_model)
@@ -35,7 +40,7 @@ def main():
     
     # Run single simulation
     print("\nRunning single simulation...")
-    results = simulator.simulate_flight(initial_conditions)
+    results = simulator.simulate_flight(initial_conditions, wind_profile, altitude_profile)
     
     # Print results
     print(f"Rail exit speed: {results['rail_exit_speed']:.2f} m/s")
@@ -50,6 +55,8 @@ def main():
     # Run Monte Carlo analysis
     print("\nRunning Monte Carlo analysis...")
     monte_carlo = MonteCarloAnalyzer(rocket, motor, atmosphere, wind_model)
+    monte_carlo.base_altitude_profile = altitude_profile
+    monte_carlo.base_wind_profile = wind_profile
     
     # Run with fewer samples for example (increase for production)
     mc_results = monte_carlo.run_monte_carlo(initial_conditions, n_samples=50)

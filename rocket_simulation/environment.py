@@ -158,6 +158,22 @@ class WindModel:
             wind_profile[i, 2] = new_turbulence_w
         
         return wind_profile
+
+    def load_wind_profile_from_csv(self, file_path):
+        """Load a wind profile from a CSV file.
+
+        The file should contain columns ``altitude``, ``u``, ``v`` and
+        optionally ``w`` in meters and meters per second.  This helper enables
+        running the simulator with realistic forecasts exported from external
+        tools such as NOAA's GFS or NAM models.
+        """
+        data = np.genfromtxt(file_path, delimiter=',', names=True)
+        altitudes = data['altitude']
+        if 'w' in data.dtype.names:
+            wind = np.vstack([data['u'], data['v'], data['w']]).T
+        else:
+            wind = np.vstack([data['u'], data['v'], np.zeros_like(altitudes)]).T
+        return altitudes, wind
     
     def get_wind_at_altitude(self, altitude, wind_profile, altitude_profile):
         """Interpolate wind from wind profile at given altitude."""
@@ -168,5 +184,4 @@ class WindModel:
         wind_u = interpolate_1d(altitude, altitude_profile, wind_profile[:, 0])
         wind_v = interpolate_1d(altitude, altitude_profile, wind_profile[:, 1])
         wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])
-        
-        return np.array([wind_u, wind_v, wind_w]) 
+                return np.array([wind_u, wind_v, wind_w]) 

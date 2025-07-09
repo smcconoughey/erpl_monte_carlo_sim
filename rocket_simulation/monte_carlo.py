@@ -23,6 +23,13 @@ class MonteCarloAnalyzer:
         self.atmosphere = atmosphere
         self.wind_model = wind_model
         self.n_cores = os.cpu_count()
+
+        # Optional externally supplied wind profile (altitude array and
+        # corresponding wind vectors).  When provided, all Monte Carlo samples
+        # will use this deterministic profile instead of generating a new one
+        # each iteration.
+        self.base_altitude_profile = None
+        self.base_wind_profile = None
         
         # Uncertainty parameters
         self.uncertainty_params = {
@@ -247,14 +254,20 @@ class MonteCarloAnalyzer:
         # Create perturbed atmosphere
         perturbed_atmosphere = self._perturb_atmosphere(params)
         
-        # Generate wind profile
-        altitude_profile = np.linspace(0, 25000, 100)  # Up to 25 km
-        wind_profile = self.wind_model.generate_stochastic_profile(
-            altitude_profile, 
-            params['wind_speed'], 
-            params['wind_direction'],
-            random_state=np.random.RandomState(params['random_seed'])
-        )
+        # Generate wind profile.  If a base profile has been provided, reuse it
+        # for every simulation to mimic a deterministic forecast.  Otherwise a
+        # stochastic profile is generated as before.
+        if self.base_wind_profile is not None and self.base_altitude_profile is not None:
+            altitude_profile = self.base_altitude_profile
+            wind_profile = self.base_wind_profile
+        else:
+            altitude_profile = np.linspace(0, 25000, 100)  # Up to 25 km
+            wind_profile = self.wind_model.generate_stochastic_profile(
+                altitude_profile,
+                params['wind_speed'],
+                params['wind_direction'],
+                random_state=np.random.RandomState(params['random_seed'])
+            )
         
         # Create simulator
         simulator = FlightSimulator(perturbed_rocket, perturbed_motor, perturbed_atmosphere, self.wind_model)
