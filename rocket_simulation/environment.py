@@ -158,6 +158,71 @@ class WindModel:
             wind_profile[i, 2] = new_turbulence_w
         
         return wind_profile
+
+    def load_wind_profile_from_csv(self, file_path):
+        """Load a wind profile from a CSV file.
+
+        The file should contain columns ``altitude``, ``u``, ``v`` and
+        optionally ``w`` in meters and meters per second.  This helper enables
+        running the simulator with realistic forecasts exported from external
+        tools such as NOAA's GFS or NAM models.
+        """
+        data = np.genfromtxt(file_path, delimiter=',', names=True)
+        altitudes = data['altitude']
+        if 'w' in data.dtype.names:
+            wind = np.vstack([data['u'], data['v'], data['w']]).T
+        else:
+            wind = np.vstack([data['u'], data['v'], np.zeros_like(altitudes)]).T
+        return altitudes, wind
+
+    def perturb_wind_profile(self, altitudes, base_profile, random_state=None):
+        """Add stochastic perturbations to a baseline wind profile.
+
+        Parameters
+        ----------
+        altitudes : array-like
+            Altitude grid corresponding to ``base_profile``.
+        base_profile : ndarray, shape (N, 3)
+            Baseline wind vector at each altitude [u, v, w] (m/s).
+        random_state : ``np.random.RandomState`` or ``None``
+            Random state for reproducibility.
+
+        Returns
+        -------
+        ndarray
+            Perturbed wind profile with the same shape as ``base_profile``.
+        """
+        if random_state is None:
+            random_state = np.random.RandomState()
+
+        n_points = len(altitudes)
+        wind_profile = np.zeros_like(base_profile)
+
+        # Initial turbulence at the surface
+        turbulence_scale = self.turbulence_intensity * np.exp(-altitudes[0] / 2000.0)
+        wind_profile[0, 0] = base_profile[0, 0] + random_state.normal(0, turbulence_scale)
+        wind_profile[0, 1] = base_profile[0, 1] + random_state.normal(0, turbulence_scale)
+        wind_profile[0, 2] = base_profile[0, 2] + random_state.normal(0, turbulence_scale * 0.3)
+
+        for i in range(1, n_points):
+            altitude = altitudes[i]
+            turbulence_scale = self.turbulence_intensity * np.exp(-altitude / 2000.0)
+            altitude_diff = max(altitudes[i] - altitudes[i-1], 1e-6)
+            correlation_factor = np.exp(-altitude_diff / self.correlation_length)
+            correlation_factor = np.clip(correlation_factor, 0.1, 0.95)
+
+            prev_turb = wind_profile[i-1] - base_profile[i-1]
+            turbulence_var = turbulence_scale * np.sqrt(max(1 - correlation_factor**2, 0.01))
+
+            new_turb_u = correlation_factor * prev_turb[0] + random_state.normal(0, turbulence_var)
+            new_turb_v = correlation_factor * prev_turb[1] + random_state.normal(0, turbulence_var)
+            new_turb_w = correlation_factor * prev_turb[2] + random_state.normal(0, turbulence_var * 0.3)
+
+            wind_profile[i, 0] = base_profile[i, 0] + new_turb_u
+            wind_profile[i, 1] = base_profile[i, 1] + new_turb_v
+            wind_profile[i, 2] = base_profile[i, 2] + new_turb_w
+
+        return wind_profile
     
     def get_wind_at_altitude(self, altitude, wind_profile, altitude_profile):
         """Interpolate wind from wind profile at given altitude."""
@@ -167,6 +232,4 @@ class WindModel:
         # Interpolate each component
         wind_u = interpolate_1d(altitude, altitude_profile, wind_profile[:, 0])
         wind_v = interpolate_1d(altitude, altitude_profile, wind_profile[:, 1])
-        wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])
-        
-        return np.array([wind_u, wind_v, wind_w]) 
+        wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])        return np.array([wind_u, wind_v, wind_w]) 

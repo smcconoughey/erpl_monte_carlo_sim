@@ -76,7 +76,8 @@ class FlightSimulator:
             # rail hardware and do not slow the rocket during this phase.
             rel_speed = np.dot(rel_vel, direction)
             mach = mach_number(rel_vel, temp)
-            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, 0.0, 0.0, mass_props)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(
+                mach, 0.0, 0.0, mass_props, power_on=True)
             drag = 0.5 * density * rel_speed ** 2 * aero_coeffs['cd'] * self.rocket.reference_area
 
             thrust = self.motor.get_thrust(t, atm['pressure'])
@@ -150,9 +151,10 @@ class FlightSimulator:
         # Initial propellant fraction
         state0[13] = 1.0
         
-        # Store wind profile
+        # Store wind profile and reset stateful flags
         self.wind_profile = wind_profile
         self.altitude_profile = altitude_profile
+        self.parachute_deployed = False
         
         # Simulate guided launch rail phase
         state0, rail_time, rail_info = self._simulate_launch_rail(state0)
@@ -275,7 +277,8 @@ class FlightSimulator:
                 forces_body += -drag * velocity_body / rel_speed
         elif q_dynamic > 0:
             aero_coeffs = self.rocket.get_aerodynamic_coefficients(
-                mach, alpha, beta, mass_props
+                mach, alpha, beta, mass_props,
+                power_on=(propellant_fraction > 0)
             )
 
             # Aerodynamic forces in wind coordinates
@@ -413,7 +416,10 @@ class FlightSimulator:
             aoa = angle_of_attack(vel_body)
             beta_angle = sideslip_angle(vel_body)
             cp_val = self.rocket.get_dynamic_cp(mach, aoa)
-            aero_coeffs = self.rocket.get_aerodynamic_coefficients(mach, aoa, beta_angle, mass_props)
+            aero_coeffs = self.rocket.get_aerodynamic_coefficients(
+                mach, aoa, beta_angle, mass_props,
+                power_on=(propellant_fractions[i] > 0)
+            )
 
             q_dyn = 0.5 * atm_props['density'] * np.linalg.norm(vel_rel) ** 2
             drag_history[i] = q_dyn * aero_coeffs['cd'] * self.rocket.reference_area

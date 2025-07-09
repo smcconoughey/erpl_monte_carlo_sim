@@ -25,7 +25,10 @@ class Rocket:
         # Mass properties (dry mass)
         self.dry_mass = 113.4  # kg (250 lb)
         self.propellant_mass = 63.5  # kg (140 lb)
-        self.center_of_mass_dry = 4.9 # cg m from nose
+        # Shift the dry center of mass aft so the initial static margin is
+        # roughly two calibers (~2 body diameters).  This reduces excessive
+        # weathercocking while keeping the vehicle stable.
+        self.center_of_mass_dry = 5.8  # cg m from nose
         
         # Moments of inertia (dry, kg*m^2)
         self.Ixx_dry = 45   # Roll moment of inertia 
@@ -56,6 +59,11 @@ class Rocket:
         self.parachute_area = 15.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
         self.parachute_cd = 2.0
         self.parachute_deployment_altitude = 500  # m
+
+        # Additional aerodynamic settings
+        # After motor burnout the base drag increases noticeably.  Use a simple
+        # multiplier for the power-off drag curve.
+        self.power_off_drag_factor = 1.2
         
     def _calculate_center_of_pressure(self):
         """Calculate center of pressure using Barrowman equations."""
@@ -127,12 +135,29 @@ class Rocket:
             'Izz': current_Izz
         }
     
-    def get_aerodynamic_coefficients(self, mach, alpha, beta=0.0, mass_props=None):
-        """Get aerodynamic coefficients for current flight conditions."""
+    def get_aerodynamic_coefficients(self, mach, alpha, beta=0.0, mass_props=None, power_on=True):
+        """Get aerodynamic coefficients for current flight conditions.
+
+        Parameters
+        ----------
+        mach : float
+            Mach number of the vehicle.
+        alpha : float
+            Angle of attack in radians.
+        beta : float, optional
+            Sideslip angle in radians.
+        mass_props : dict or None, optional
+            Mass properties dictionary from ``get_mass_properties``.
+        power_on : bool, optional
+            If ``False``, apply the power-off drag multiplier to account for
+            increased base drag after motor burnout.
+        """
         # Drag coefficient
         cd0 = interpolate_1d(mach, self.Cd_data['mach'], self.Cd_data['cd0'])
         cda = interpolate_1d(mach, self.Cd_data['mach'], self.Cd_data['cda'])
         cd = cd0 + cda * alpha**2
+        if not power_on:
+            cd *= self.power_off_drag_factor
 
         # Lift coefficient using finite wing theory with sweep
         cr = self.fin_root_chord
@@ -175,5 +200,4 @@ class Rocket:
     
     def get_stability_margin(self, propellant_fraction_remaining):
         """Calculate static stability margin."""
-        mass_props = self.get_mass_properties(propellant_fraction_remaining)        
-        return (self.cp_location - mass_props['center_of_mass']) / self.reference_diameter 
+        mass_props = self.get_mass_properties(propellant_fraction_remaining)                return (self.cp_location - mass_props['center_of_mass']) / self.reference_diameter 
