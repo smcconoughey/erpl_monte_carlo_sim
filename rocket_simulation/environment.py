@@ -232,4 +232,5 @@ class WindModel:
         # Interpolate each component
         wind_u = interpolate_1d(altitude, altitude_profile, wind_profile[:, 0])
         wind_v = interpolate_1d(altitude, altitude_profile, wind_profile[:, 1])
-        wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])        return np.array([wind_u, wind_v, wind_w]) 
+        wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])
+        return np.array([wind_u, wind_v, wind_w]) 

@@ -200,4 +200,5 @@ class Rocket:
     
     def get_stability_margin(self, propellant_fraction_remaining):
         """Calculate static stability margin."""
-        mass_props = self.get_mass_properties(propellant_fraction_remaining)                return (self.cp_location - mass_props['center_of_mass']) / self.reference_diameter 
+        mass_props = self.get_mass_properties(propellant_fraction_remaining)
+        return (self.cp_location - mass_props['center_of_mass']) / self.reference_diameter 
