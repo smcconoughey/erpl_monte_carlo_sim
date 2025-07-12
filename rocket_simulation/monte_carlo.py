@@ -334,10 +334,28 @@ class MonteCarloAnalyzer:
         if len(valid_results) == 0:
             raise ValueError("No valid simulation results")
         
-        # Extract key metrics
-        apogee_altitudes = [r['apogee_altitude'] for r in valid_results]
-        ranges = [r['range'] for r in valid_results]
-        flight_times = [r['flight_time'] for r in valid_results]
+        # Extract key metrics and filter out invalid values
+        apogee_altitudes = []
+        ranges = []
+        flight_times = []
+        
+        for r in valid_results:
+            apogee = r.get('apogee_altitude', np.nan)
+            range_val = r.get('range', np.nan)
+            flight_time = r.get('flight_time', np.nan)
+            
+            # Filter out invalid values (NaN, inf, or unrealistic values)
+            if (np.isfinite(apogee) and apogee > 0 and apogee < 100000 and  # Max 100km altitude
+                np.isfinite(range_val) and range_val >= 0 and range_val < 1000000 and  # Max 1000km range
+                np.isfinite(flight_time) and flight_time > 0 and flight_time < 600):  # Max flight time
+                apogee_altitudes.append(apogee)
+                ranges.append(range_val)
+                flight_times.append(flight_time)
+            else:
+                print(f"Warning: Filtered out invalid result - apogee: {apogee}, range: {range_val}, time: {flight_time}")
+        
+        if len(apogee_altitudes) == 0:
+            raise ValueError("No valid simulation results after filtering")
 
         # Determine ranges of Monte Carlo parameters actually used
         param_ranges = {}
@@ -479,8 +497,29 @@ class MonteCarloAnalyzer:
         output_dir = None
         _, axes = plt.subplots(2, 2, figsize=(12, 10))
         
+        # Extract and filter data for plotting
+        apogee_altitudes = []
+        ranges = []
+        flight_times = []
+        
+        for r in analysis['results']:
+            apogee = r.get('apogee_altitude', np.nan)
+            range_val = r.get('range', np.nan)
+            flight_time = r.get('flight_time', np.nan)
+            
+            # Filter out invalid values for plotting
+            if (np.isfinite(apogee) and apogee > 0 and apogee < 100000 and
+                np.isfinite(range_val) and range_val >= 0 and range_val < 1000000 and
+                np.isfinite(flight_time) and flight_time > 0 and flight_time < 600):
+                apogee_altitudes.append(apogee)
+                ranges.append(range_val)
+                flight_times.append(flight_time)
+        
+        if len(apogee_altitudes) == 0:
+            print("Warning: No valid data to plot")
+            return None
+        
         # Apogee altitude histogram
-        apogee_altitudes = [r['apogee_altitude'] for r in analysis['results']]
         axes[0, 0].hist(apogee_altitudes, bins=50, alpha=0.7, edgecolor='black')
         axes[0, 0].set_xlabel('Apogee Altitude (m)')
         axes[0, 0].set_ylabel('Frequency')
@@ -488,7 +527,6 @@ class MonteCarloAnalyzer:
         axes[0, 0].grid(True, alpha=0.3)
         
         # Range histogram
-        ranges = [r['range'] for r in analysis['results']]
         axes[0, 1].hist(ranges, bins=50, alpha=0.7, edgecolor='black')
         axes[0, 1].set_xlabel('Range (m)')
         axes[0, 1].set_ylabel('Frequency')
@@ -496,7 +534,6 @@ class MonteCarloAnalyzer:
         axes[0, 1].grid(True, alpha=0.3)
         
         # Flight time histogram
-        flight_times = [r['flight_time'] for r in analysis['results']]
         axes[1, 0].hist(flight_times, bins=50, alpha=0.7, edgecolor='black')
         axes[1, 0].set_xlabel('Flight Time (s)')
         axes[1, 0].set_ylabel('Frequency')
@@ -529,14 +566,17 @@ class MonteCarloAnalyzer:
         print("\nMonte Carlo Analysis Results:")
         print(f"Number of successful simulations: {analysis['n_samples']}")
         print(f"Number of failed simulations: {analysis['n_failed']}")
-        print(f"\nApogee Altitude Statistics:")
-        print(f"  Mean: {analysis['apogee_altitude']['mean']:.1f} m")
-        print(f"  Standard Deviation: {analysis['apogee_altitude']['std']:.1f} m")
-        print(f"  95% Confidence Interval: [{analysis['apogee_altitude']['percentiles'][0]:.1f}, {analysis['apogee_altitude']['percentiles'][4]:.1f}] m")
-        print(f"\nRange Statistics:")
-        print(f"  Mean: {analysis['range']['mean']:.1f} m")
-        print(f"  Standard Deviation: {analysis['range']['std']:.1f} m")
-        print(f"  95% Confidence Interval: [{analysis['range']['percentiles'][0]:.1f}, {analysis['range']['percentiles'][4]:.1f}] m")
+        print(f"Number of valid results plotted: {len(apogee_altitudes)}")
+        
+        if len(apogee_altitudes) > 0:
+            print(f"\nApogee Altitude Statistics:")
+            print(f"  Mean: {analysis['apogee_altitude']['mean']:.1f} m")
+            print(f"  Standard Deviation: {analysis['apogee_altitude']['std']:.1f} m")
+            print(f"  95% Confidence Interval: [{analysis['apogee_altitude']['percentiles'][0]:.1f}, {analysis['apogee_altitude']['percentiles'][4]:.1f}] m")
+            print(f"\nRange Statistics:")
+            print(f"  Mean: {analysis['range']['mean']:.1f} m")
+            print(f"  Standard Deviation: {analysis['range']['std']:.1f} m")
+            print(f"  95% Confidence Interval: [{analysis['range']['percentiles'][0]:.1f}, {analysis['range']['percentiles'][4]:.1f}] m")
         
         return output_dir
     

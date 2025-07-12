@@ -16,7 +16,7 @@ class FlightSimulator:
         self.wind_model = wind_model
         
         # Integration parameters
-        self.max_time = 300.0  # Maximum flight time (s)
+        self.max_time = 600.0  # Maximum flight time (s) - increased to 10 minutes
         self.dt_initial = 0.01  # Initial time step (s)
         self.rtol = 1e-4  # Relative tolerance (relaxed from 1e-6)
         self.atol = 1e-7  # Absolute tolerance (relaxed from 1e-9)
@@ -375,6 +375,14 @@ class FlightSimulator:
         # Calculate range
         final_position = positions[:, -1]
         range_distance = np.sqrt(final_position[0]**2 + final_position[1]**2)
+        
+        # Check if simulation terminated properly (hit ground) or reached max time
+        final_altitude = altitudes[-1]
+        if final_altitude > 1.0:  # Still in air at end of simulation
+            print(f"Warning: Simulation ended at altitude {final_altitude:.1f}m (max time reached)")
+            # Mark as potentially invalid result
+            if time[-1] >= self.max_time - 1:
+                range_distance = np.inf  # Mark as invalid
         
         # Calculate Euler angles and additional flight metrics
         euler_angles = np.zeros((3, len(time)))
