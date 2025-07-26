@@ -3,7 +3,74 @@ Utility functions for rocket simulation
 """
 
 import numpy as np
-from scipy.spatial.transform import Rotation
+
+# Simple replacement for scipy.spatial.transform.Rotation to avoid dependency
+class SimpleRotation:
+    """Simple replacement for scipy Rotation class"""
+    def __init__(self, quat):
+        self.quat = quat
+    
+    @classmethod
+    def from_euler(cls, seq, angles):
+        """Convert Euler angles to quaternion (simplified implementation)"""
+        if seq == "xyz":
+            roll, pitch, yaw = angles
+        else:
+            raise NotImplementedError("Only 'xyz' sequence supported")
+        
+        # Convert to quaternion using standard formulas
+        cr = np.cos(roll / 2)
+        sr = np.sin(roll / 2)
+        cp = np.cos(pitch / 2)
+        sp = np.sin(pitch / 2)
+        cy = np.cos(yaw / 2)
+        sy = np.sin(yaw / 2)
+        
+        # Quaternion in [x, y, z, w] format
+        x = sr * cp * cy - cr * sp * sy
+        y = cr * sp * cy + sr * cp * sy
+        z = cr * cp * sy - sr * sp * cy
+        w = cr * cp * cy + sr * sp * sy
+        
+        return cls([x, y, z, w])
+    
+    @classmethod
+    def from_quat(cls, quat):
+        """Create from quaternion"""
+        return cls(quat)
+    
+    def as_quat(self):
+        """Return quaternion in [x, y, z, w] format"""
+        return self.quat
+    
+    def as_euler(self, seq):
+        """Convert quaternion to Euler angles (simplified implementation)"""
+        if seq != "xyz":
+            raise NotImplementedError("Only 'xyz' sequence supported")
+        
+        x, y, z, w = self.quat
+        
+        # Roll (x-axis rotation)
+        sinr_cosp = 2 * (w * x + y * z)
+        cosr_cosp = 1 - 2 * (x * x + y * y)
+        roll = np.arctan2(sinr_cosp, cosr_cosp)
+        
+        # Pitch (y-axis rotation)
+        sinp = 2 * (w * y - z * x)
+        if np.abs(sinp) >= 1:
+            pitch = np.copysign(np.pi / 2, sinp)  # use 90 degrees if out of range
+        else:
+            pitch = np.arcsin(sinp)
+        
+        # Yaw (z-axis rotation)
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y * y + z * z)
+        yaw = np.arctan2(siny_cosp, cosy_cosp)
+        
+        return np.array([roll, pitch, yaw])
+
+# Use our simple implementation instead of scipy
+Rotation = SimpleRotation
 
 
 def normalize_quaternion(q):
@@ -45,32 +112,13 @@ def quaternion_to_rotation_matrix(q):
 
 
 def angular_velocity_to_quaternion_rate(omega, q):
-    """Convert angular velocity to quaternion rate.
-
-    Parameters
-    ----------
-    omega : array-like
-        Angular velocity vector in the body frame [rad/s].
-    q : array-like
-        Current orientation quaternion representing the rotation from the body
-        frame to the inertial frame.
-
-    Returns
-    -------
-    numpy.ndarray
-        Time derivative of the orientation quaternion.
-
-    Notes
-    -----
-    The quaternion derivative for a body-to-inertial orientation is given by
-    ``q_dot = 0.5 * q ⊗ [0, ω]`` where ``⊗`` denotes quaternion multiplication
-    and ``ω`` is the angular velocity in the body frame.  The previous
-    implementation incorrectly right-multiplied the current quaternion, leading
-    to inverted attitude updates and large errors in the integrated attitude.
-    """
-
+    """Convert angular velocity to quaternion rate."""
     omega_q = np.array([0.0, omega[0], omega[1], omega[2]])
-    return 0.5 * quaternion_multiply(q, omega_q)
+    q_dot = 0.5 * quaternion_multiply(q, omega_q)
+    lambda_corr = 0.5  # Correction gain
+    norm_error = np.dot(q, q) - 1.0
+    q_dot -= lambda_corr * norm_error * q
+    return q_dot
 
 
 def skew_symmetric(v):
@@ -110,22 +158,18 @@ def mach_number(velocity, temperature):
 
 
 def angle_of_attack(velocity_body):
-    """Calculate angle of attack from body-frame velocity."""
-    V_total = np.linalg.norm(velocity_body)
-    if V_total < 1e-6:
+    """Calculate signed angle of attack from body-frame velocity."""
+    if np.abs(velocity_body[0]) < 1e-6 and np.abs(velocity_body[2]) < 1e-6:
         return 0.0
-    return np.arctan2(
-        np.sqrt(velocity_body[1] ** 2 + velocity_body[2] ** 2),
-        velocity_body[0],
-    )
+    return np.arctan2(velocity_body[2], velocity_body[0])
 
 
 def sideslip_angle(velocity_body):
-    """Calculate sideslip angle from body-frame velocity."""
-    V_total = np.linalg.norm(velocity_body)
-    if V_total < 1e-6:
+    """Calculate signed sideslip angle from body-frame velocity."""
+    V_xz = np.sqrt(velocity_body[0] ** 2 + velocity_body[2] ** 2)
+    if V_xz < 1e-6:
         return 0.0
-    return np.arctan2(velocity_body[1], velocity_body[0])
+    return np.arctan2(velocity_body[1], V_xz)
 
 
 def wind_to_body_matrix(alpha, beta):

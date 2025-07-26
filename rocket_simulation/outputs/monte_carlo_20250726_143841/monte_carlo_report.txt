@@ -1,0 +1,32 @@
+Monte Carlo Analysis Report
+==================================================
+
+Generated: 2025-07-26T14:38:41.732206
+
+Simulation Summary:
+  Valid simulations: 39
+  Failed simulations: 0
+  Outlier simulations: 11
+  Success rate: 78.0%
+
+Apogee Altitude Statistics:
+  Mean: 5913.5 m
+  Standard Deviation: 1445.9 m
+  Min: 3496.2 m
+  Max: 9768.7 m
+  95% Confidence Interval: [3686.8, 8207.1] m
+
+Range Statistics:
+  Mean: 19814.5 m
+  Standard Deviation: 8128.3 m
+  Min: 11199.4 m
+  Max: 44245.1 m
+  95% Confidence Interval: [13880.2, 37864.2] m
+
+Flight Time Statistics:
+  Mean: 137.3 s
+  Standard Deviation: 17.8 s
+  Min: 98.1 s
+  Max: 185.6 s
+  95% Confidence Interval: [107.7, 169.0] s
+

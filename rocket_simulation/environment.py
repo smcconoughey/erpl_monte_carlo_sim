@@ -45,9 +45,49 @@ class StandardAtmosphere:
             )
             
         else:
-            # Extended atmosphere (simplified exponential decay)
-            temperature = self.stratosphere_temp
-            pressure = 1000.0 * np.exp(-altitude / 8000.0)  # Simplified
+            # Extended atmosphere - improved model for stratosphere/mesosphere
+            # Use proper U.S. Standard Atmosphere 1976 equations
+            if altitude <= 32000.0:  # Upper stratosphere
+                # Linear temperature increase from 20-32 km
+                temperature = self.stratosphere_temp + 0.001 * (altitude - self.stratosphere_height)
+                temperature = min(temperature, 228.65)  # Cap at mesosphere base temp
+                
+                # Proper barometric formula for this layer
+                pressure_20km = self.sea_level_pressure * (
+                    self.stratosphere_temp / self.sea_level_temperature
+                )**(self.gravity / (self.gas_constant * self.temperature_lapse_rate))
+                pressure_20km *= np.exp(
+                    -self.gravity * (self.stratosphere_height - self.troposphere_height) / 
+                    (self.gas_constant * self.stratosphere_temp)
+                )
+                
+                if altitude <= 25000.0:
+                    # Isothermal layer continuation 20-25 km
+                    pressure = pressure_20km * np.exp(
+                        -self.gravity * (altitude - self.stratosphere_height) / 
+                        (self.gas_constant * self.stratosphere_temp)
+                    )
+                else:
+                    # Temperature gradient layer 25-32 km
+                    pressure_25km = pressure_20km * np.exp(
+                        -self.gravity * 5000.0 / 
+                        (self.gas_constant * self.stratosphere_temp)
+                    )
+                    temp_gradient = 0.0028  # K/m temperature gradient
+                    temp_25km = self.stratosphere_temp
+                    
+                    pressure = pressure_25km * (
+                        temperature / temp_25km
+                    )**(self.gravity / (self.gas_constant * temp_gradient))
+            else:
+                # Mesosphere (32-50 km) - realistic but still simplified
+                temperature = 228.65 - 0.0028 * (altitude - 32000.0)
+                temperature = max(temperature, 180.0)  # Don't go below realistic minimum
+                
+                # Exponential decay but with realistic scale height
+                scale_height = self.gas_constant * temperature / self.gravity
+                pressure_32km = 868.02  # Pa at 32 km from standard atmosphere
+                pressure = pressure_32km * np.exp(-(altitude - 32000.0) / scale_height)
             
         # Calculate density
         density = pressure / (self.gas_constant * temperature)
@@ -232,4 +272,5 @@ class WindModel:
         # Interpolate each component
         wind_u = interpolate_1d(altitude, altitude_profile, wind_profile[:, 0])
         wind_v = interpolate_1d(altitude, altitude_profile, wind_profile[:, 1])
-        wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])        return np.array([wind_u, wind_v, wind_w]) 
+        wind_w = interpolate_1d(altitude, altitude_profile, wind_profile[:, 2])        
+        return np.array([wind_u, wind_v, wind_w]) 

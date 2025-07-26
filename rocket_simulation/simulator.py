@@ -3,7 +3,7 @@
 """
 
 import numpy as np
-from scipy.integrate import solve_ivp
+# from scipy.integrate import solve_ivp  # Replaced with custom RK4 integration
 from utils import *
 
 class FlightSimulator:
@@ -136,6 +136,12 @@ class FlightSimulator:
         # Initial attitude (quaternion)
         initial_euler = initial_conditions.get('attitude', [0.0, 0.0, 0.0])
         state0[6:10] = euler_to_quaternion(initial_euler[0], initial_euler[1], initial_euler[2])
+        print('Initial euler:', initial_euler)
+        print('Initial quaternion:', state0[6:10])
+        R = quaternion_to_rotation_matrix(state0[6:10])
+        print('Rotation matrix:\n', R)
+        direction = R[:, 0]
+        print('Initial thrust direction (body x in inertial):', direction)
         
         # Initial angular velocity
         state0[10:13] = initial_conditions.get('angular_velocity', [0.0, 0.0, 0.0])
@@ -169,17 +175,96 @@ class FlightSimulator:
         ground_impact.terminal = True
         ground_impact.direction = -1
         
+        def apogee_reached(t, state):
+            # Detect apogee when vertical velocity becomes negative (descending)
+            # and altitude is above 1000m to avoid false triggers during ascent
+            if state[2] > 1000.0 and state[5] < 0:
+                return 0.0  # Trigger event
+            return 1.0  # Don't trigger
+        apogee_reached.terminal = False  # Don't terminate, just record
+        apogee_reached.direction = -1
+        
+        def excessive_altitude(t, state):
+            # Terminate if altitude exceeds 100 km (clearly unphysical for this rocket)
+            return 100000.0 - state[2]
+        excessive_altitude.terminal = True
+        excessive_altitude.direction = -1
+        
         # Solve ODE
-        solution = solve_ivp(
-            dynamics,
-            [rail_time, self.max_time],
-            state0,
-            method='RK45',
-            rtol=self.rtol,
-            atol=self.atol,
-            events=ground_impact,
-            dense_output=True
-        )
+        # solution = solve_ivp(
+        #     dynamics,
+        #     [rail_time, self.max_time],
+        #     state0,
+        #     method='RK45',
+        #     rtol=1e-6,
+        #     atol=1e-9,
+        #     events=ground_impact,
+        #     dense_output=True
+        # )
+
+        # Custom RK4 integration with quaternion normalization and improved termination
+        dt = self.dt_initial
+        t = rail_time
+        state = state0.copy()
+        times = [t]
+        states = [state.copy()]
+        apogee_detected = False
+        
+        while t < self.max_time:
+            k1 = self._rocket_dynamics(t, state)
+            state2 = state + 0.5 * dt * k1
+            k2 = self._rocket_dynamics(t + 0.5 * dt, state2)
+            state3 = state + 0.5 * dt * k2
+            k3 = self._rocket_dynamics(t + 0.5 * dt, state3)
+            state4 = state + dt * k3
+            k4 = self._rocket_dynamics(t + dt, state4)
+            state += (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
+            
+            # Normalize quaternion to prevent drift
+            state[6:10] = normalize_quaternion(state[6:10])
+            
+            t += dt
+            times.append(t)
+            states.append(state.copy())
+            
+            # Check termination conditions
+            altitude = state[2]
+            vertical_velocity = state[5]
+            
+            # Ground impact
+            if altitude <= 0.5 and vertical_velocity <= 0:
+                break
+                
+            # Excessive altitude check (unphysical for this rocket)
+            if altitude > 100000.0:
+                print(f"Warning: Simulation terminated at excessive altitude {altitude/1000:.1f} km")
+                break
+                
+            # Detect apogee for early termination if rocket is clearly coming down
+            if altitude > 1000.0 and vertical_velocity < 0 and not apogee_detected:
+                apogee_detected = True
+                apogee_time = t
+                # If we've detected apogee and rocket is high up, we can be more aggressive about early termination
+                # to prevent long coast phases that might lead to numerical issues
+                if altitude > 50000.0:  # Above 50km, terminate quickly after apogee
+                    max_coast_time = 60.0  # Allow 60s of coast maximum
+                elif altitude > 25000.0:  # Above 25km, allow some coast time
+                    max_coast_time = 120.0
+                else:
+                    max_coast_time = 300.0  # Normal coast time for lower altitudes
+                    
+            # Early termination for long coast phases at high altitude
+            if apogee_detected and altitude > 25000.0:
+                coast_time = t - apogee_time
+                if coast_time > max_coast_time:
+                    print(f"Warning: Simulation terminated after {coast_time:.1f}s coast at {altitude/1000:.1f} km altitude")
+                    break
+        # Create solution-like structure
+        class Solution:
+            pass
+        solution = Solution()
+        solution.t = np.array(times)
+        solution.y = np.array(states).T
 
         # Extract results and shift time to start at zero after rail
         results = self._extract_results(solution, time_offset=rail_time)
@@ -213,9 +298,12 @@ class FlightSimulator:
         angular_velocity = state[10:13]
         propellant_fraction = state[13]
         
+        # Clamp propellant fraction to be non-negative
+        propellant_fraction = max(0.0, propellant_fraction)
+  
         # Normalize quaternion
         quaternion = normalize_quaternion(quaternion)
-        
+
         # Get rocket mass properties
         mass_props = self.rocket.get_mass_properties(propellant_fraction)
         mass = mass_props['mass']
@@ -259,7 +347,7 @@ class FlightSimulator:
         moments_body = np.zeros(3)
         
         # Thrust force
-        thrust = self.motor.get_thrust(t, atm_props['pressure'])
+        thrust = self.motor.get_thrust(t, atm_props['pressure']) if propellant_fraction > 0 else 0.0
         forces_body[0] += thrust  # Thrust along x-axis
         
         # Deploy parachute when descending below target altitude
@@ -337,10 +425,10 @@ class FlightSimulator:
         
         # Quaternion kinematics
         quaternion_rate = angular_velocity_to_quaternion_rate(angular_velocity, quaternion)
-        
+          
         # Propellant consumption
-        propellant_fraction_rate = -self.motor.get_mass_flow_rate(t) / self.rocket.propellant_mass
-        
+        propellant_fraction_rate = -self.motor.get_mass_flow_rate(t) / self.rocket.propellant_mass if propellant_fraction > 0 else 0.0
+          
         # Assemble state derivative
         state_dot = np.zeros(14)
         state_dot[0:3] = velocity
@@ -366,6 +454,15 @@ class FlightSimulator:
         # Calculate derived quantities
         altitudes = positions[2, :]
         speeds = np.linalg.norm(velocities, axis=0)
+        
+        # Find burnout
+        burn_time = self.motor.burn_time
+        burnout_index = np.argmax(time > burn_time)
+        if burnout_index > 0:
+            print('Burnout time:', time[burnout_index])
+            print('Burnout speed:', speeds[burnout_index])
+            print('Burnout altitude:', altitudes[burnout_index])
+            print('Burnout velocity:', velocities[:, burnout_index])
         
         # Find apogee
         apogee_index = np.argmax(altitudes)
