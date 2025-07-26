@@ -159,6 +159,15 @@ class Rocket:
         if not power_on:
             cd *= self.power_off_drag_factor
 
+        # Apply simple stall model for high angles of attack.  The previous
+        # linear lift model allowed unrealistically large forces when the rocket
+        # departed far from the flight path.  Once the magnitude of ``alpha``
+        # exceeds ``stall_angle`` the lift tapers off and additional drag is
+        # applied to better approximate stalled fins.
+        stall_angle = np.radians(15.0)
+        max_angle = np.radians(45.0)
+        abs_alpha = np.abs(alpha)
+
         # Lift coefficient using finite wing theory with sweep
         cr = self.fin_root_chord
         ct = self.fin_tip_chord
@@ -170,6 +179,12 @@ class Rocket:
         denom = 2 + np.sqrt(4 + (AR * beta_m / max(np.cos(self.fin_sweep_angle), 1e-6)) ** 2)
         cl_alpha = (2 * np.pi * AR / denom) * np.cos(self.fin_sweep_angle)
         cl = cl_alpha * alpha
+
+        if abs_alpha > stall_angle:
+            # Scale lift down once past the stall angle and ramp up drag
+            stall_factor = max(0.0, 1.0 - (abs_alpha - stall_angle) / (max_angle - stall_angle))
+            cl = cl_alpha * stall_angle * stall_factor * np.sign(alpha)
+            cd *= 1.0 + 0.5 * (abs_alpha - stall_angle) / (max_angle - stall_angle)
 
         # Moment coefficient using dynamic CP
         cp_current = self.get_dynamic_cp(mach, alpha)
@@ -184,6 +199,10 @@ class Rocket:
         # Side force coefficient
         cy = cl_alpha * beta
         cn = cl_alpha * alpha
+
+        if abs_alpha > stall_angle:
+            cy *= stall_factor
+            cn = cl_alpha * stall_angle * stall_factor * np.sign(alpha)
         cyaw = - cl_alpha * static_margin * beta
 
         return {

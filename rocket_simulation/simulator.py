@@ -29,9 +29,12 @@ class FlightSimulator:
         self.wind_profile = None
         self.altitude_profile = None
 
-        # Simple rotational damping coefficients (N*m*s/rad)
-        self.pitch_damping = 50.0
-        self.yaw_damping = 50.0
+        # Simple rotational damping coefficients (N*m*s/rad).  The previous
+        # values were overly large which caused the rocket to "stick" at a
+        # non-zero angle of attack in wind.  Reducing the damping allows a small
+        # oscillation that keeps the average trajectory closer to vertical.
+        self.pitch_damping = 20.0
+        self.yaw_damping = 20.0
 
         # Parachute deployment state
         self.parachute_deployed = False
