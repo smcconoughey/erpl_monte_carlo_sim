@@ -203,7 +203,7 @@ class FlightSimulator:
         # )
 
         # Custom RK4 integration with quaternion normalization and improved termination
-        dt = self.dt_initial
+        dt = min(self.dt_initial, 0.005)  # Cap time step at 5ms for stability
         t = rail_time
         state = state0.copy()
         times = [t]
@@ -307,6 +307,12 @@ class FlightSimulator:
         # Get rocket mass properties
         mass_props = self.rocket.get_mass_properties(propellant_fraction)
         mass = mass_props['mass']
+        
+        # Safety check: mass should never be below dry mass
+        if mass < self.rocket.dry_mass:
+            mass = self.rocket.dry_mass
+            # Recalculate mass properties with zero propellant
+            mass_props = self.rocket.get_mass_properties(0.0)
         Ixx = mass_props['Ixx']
         Iyy = mass_props['Iyy']
         Izz = mass_props['Izz']
@@ -346,8 +352,11 @@ class FlightSimulator:
         forces_body = np.zeros(3)
         moments_body = np.zeros(3)
         
-        # Thrust force
-        thrust = self.motor.get_thrust(t, atm_props['pressure']) if propellant_fraction > 0 else 0.0
+        # Thrust force - only if we have propellant AND within burn time
+        if propellant_fraction > 0 and t <= self.motor.burn_time:
+            thrust = self.motor.get_thrust(t, atm_props['pressure'])
+        else:
+            thrust = 0.0
         forces_body[0] += thrust  # Thrust along x-axis
         
         # Deploy parachute when descending below target altitude
@@ -426,8 +435,16 @@ class FlightSimulator:
         # Quaternion kinematics
         quaternion_rate = angular_velocity_to_quaternion_rate(angular_velocity, quaternion)
           
-        # Propellant consumption
-        propellant_fraction_rate = -self.motor.get_mass_flow_rate(t) / self.rocket.propellant_mass if propellant_fraction > 0 else 0.0
+        # Propellant consumption - prevent negative propellant fraction
+        if propellant_fraction > 0 and t <= self.motor.burn_time:
+            mass_flow = self.motor.get_mass_flow_rate(t)
+            propellant_fraction_rate = -mass_flow / self.rocket.propellant_mass
+            # Ensure we don't go below zero in next time step
+            remaining_time = propellant_fraction / abs(propellant_fraction_rate) if propellant_fraction_rate != 0 else float('inf')
+            if remaining_time < 0.01:  # Less than 10ms remaining
+                propellant_fraction_rate = -propellant_fraction / 0.01  # Burn out in 10ms
+        else:
+            propellant_fraction_rate = 0.0
           
         # Assemble state derivative
         state_dot = np.zeros(14)

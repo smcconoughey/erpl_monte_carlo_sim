@@ -1,0 +1,259 @@
+{
+  "timestamp": "2025-07-26T15:03:04.240530",
+  "simulation_summary": {
+    "total_simulations": 46,
+    "failed_simulations": 0,
+    "outlier_simulations": 4,
+    "success_rate": 92.0
+  },
+  "apogee_altitude_stats": {
+    "mean": 6120.061414558086,
+    "std": 1812.48125729195,
+    "min": 3481.9120223748937,
+    "max": 13607.330101013375,
+    "percentiles": [
+      3725.4167660895037,
+      4989.8299414232315,
+      6124.1682733458765,
+      6817.1395013785095,
+      8160.1160316646865
+    ]
+  },
+  "range_stats": {
+    "mean": 19945.284229278393,
+    "std": 9706.809886218996,
+    "min": 11964.504135788042,
+    "max": 65481.74241375359,
+    "percentiles": [
+      14053.446392957603,
+      15423.304815448704,
+      16406.842901113716,
+      18528.11318499698,
+      38233.13760580604
+    ]
+  },
+  "flight_time_stats": {
+    "mean": 140.21826086950938,
+    "std": 19.398746351716113,
+    "min": 98.2049999999824,
+    "max": 205.77999999988452,
+    "percentiles": [
+      110.28374999997138,
+      134.17499999994965,
+      139.38499999994494,
+      147.007499999938,
+      174.40749999991309
+    ]
+  },
+  "uncertainty_parameters": {
+    "initial_position": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "initial_velocity": [
+      0.1,
+      0.1,
+      0.1
+    ],
+    "initial_attitude": [
+      0.005,
+      0.005,
+      0.005
+    ],
+    "initial_angular_velocity": [
+      0.005,
+      0.005,
+      0.005
+    ],
+    "mass_uncertainty": 0.02,
+    "thrust_uncertainty": 0.03,
+    "wind_speed_range": [
+      0.0,
+      8.0
+    ],
+    "wind_direction_range": [
+      0.0,
+      6.283185307179586
+    ],
+    "atmospheric_density_uncertainty": 0.05
+  },
+  "parameter_ranges_observed": {
+    "initial_position_offset": {
+      "min": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "max": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "initial_velocity_offset": {
+      "min": [
+        -0.2653318559261479,
+        -0.2486780651627865,
+        -0.2596878630257014
+      ],
+      "max": [
+        0.2240893199201458,
+        0.18675579901499675,
+        0.24227700144981212
+      ]
+    },
+    "initial_attitude_offset": {
+      "min": [
+        -0.010374270092727718,
+        -0.012112635450500422,
+        -0.008132021166553425
+      ],
+      "max": [
+        0.011462451715757752,
+        0.011022781422780674,
+        0.008373193160847696
+      ]
+    },
+    "initial_angular_velocity_offset": {
+      "min": [
+        -0.007312729764883288,
+        -0.007741706612572373,
+        -0.012423519930193989
+      ],
+      "max": [
+        0.008861291391537154,
+        0.013156402786319094,
+        0.011461040064074788
+      ]
+    },
+    "mass_multiplier": {
+      "min": 0.9636237532139434,
+      "max": 1.0361083038078565
+    },
+    "thrust_multiplier": {
+      "min": 0.9398969373502818,
+      "max": 1.0512871919095885
+    },
+    "wind_speed": {
+      "min": 0.19185505901732292,
+      "max": 7.808026526540333
+    },
+    "wind_direction": {
+      "min": 0.03858420119915798,
+      "max": 6.175557776964104
+    },
+    "density_multiplier": {
+      "min": 0.8952625316946023,
+      "max": 1.1020459726500125
+    },
+    "random_seed": {
+      "min": 0.0,
+      "max": 48.0
+    }
+  },
+  "rocket_parameters": {
+    "name": "Sounding Rocket",
+    "length": 7.62,
+    "diameter": 0.219,
+    "nose_length": 0.2,
+    "fin_span": 0.2,
+    "fin_root_chord": 0.2,
+    "fin_tip_chord": 0.1,
+    "fin_count": 4,
+    "fin_sweep_angle": 0.0,
+    "fin_cant_angle": 0.0,
+    "dry_mass": 113.4,
+    "propellant_mass": 63.5,
+    "center_of_mass_dry": 5.8,
+    "Ixx_dry": 45,
+    "Iyy_dry": 971.9,
+    "Izz_dry": 971.693,
+    "reference_area": 0.037668481314705016,
+    "reference_diameter": 0.219,
+    "Cd_data": {
+      "mach": [
+        0.0,
+        0.5,
+        0.8,
+        1.0,
+        1.2,
+        1.5,
+        2.0,
+        3.0
+      ],
+      "cd0": [
+        0.4,
+        0.42,
+        0.48,
+        0.65,
+        0.52,
+        0.45,
+        0.4,
+        0.38
+      ],
+      "cda": [
+        1.2,
+        1.25,
+        1.3,
+        1.4,
+        1.35,
+        1.25,
+        1.2,
+        1.15
+      ]
+    },
+    "CP_shift_data": {
+      "mach": [
+        0.0,
+        0.8,
+        1.0,
+        1.2,
+        2.0,
+        3.0
+      ],
+      "cp_shift": [
+        0.0,
+        -0.05,
+        -0.1,
+        -0.05,
+        0.0,
+        0.0
+      ]
+    },
+    "cp_location": 6.223497156786502,
+    "parachute_area": 15.0,
+    "parachute_cd": 2.0,
+    "parachute_deployment_altitude": 500,
+    "power_off_drag_factor": 1.2
+  },
+  "motor_parameters": {
+    "name": "Liquid Motor",
+    "thrust_vacuum": 11520.8898,
+    "thrust_sea_level": 10186.4238,
+    "mass_flow_rate": 4.26,
+    "propellant_mass": 63.5,
+    "nozzle_exit_area": 0.013170155440414512,
+    "burn_time": 14.906103286384978,
+    "total_impulse": 171731.57330985917,
+    "thrust_uncertainty": 0.05,
+    "mass_flow_uncertainty": 0.03
+  },
+  "atmosphere_parameters": {
+    "sea_level_pressure": 101325.0,
+    "sea_level_temperature": 288.15,
+    "sea_level_density": 1.225,
+    "temperature_lapse_rate": 0.0065,
+    "gas_constant": 287.053,
+    "gravity": 9.80665,
+    "gamma": 1.4,
+    "troposphere_height": 11000.0,
+    "stratosphere_height": 20000.0,
+    "stratosphere_temp": 216.65
+  },
+  "wind_model_parameters": {
+    "power_law_exponent": 0.14,
+    "turbulence_intensity": 2.0,
+    "correlation_length": 100.0
+  }
+}
