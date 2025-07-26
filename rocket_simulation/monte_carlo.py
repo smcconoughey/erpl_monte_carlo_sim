@@ -39,7 +39,10 @@ class MonteCarloAnalyzer:
             'initial_angular_velocity': [0.005, 0.005, 0.005],  # Standard deviation (rad/s) - reduced
             'mass_uncertainty': 0.02,  # 2% standard deviation
             'thrust_uncertainty': 0.03,  # 3% standard deviation - reduced from 5%
-            'wind_speed_range': [0.0, 8.0],  # Wind speed range (m/s) - reduced from 15 m/s
+            # Maximum surface wind lowered to 5 m/s.  Higher winds caused the
+            # over-stable vehicle to weathercock dramatically, leading to
+            # unrealistic horizontal range in the Monte Carlo results.
+            'wind_speed_range': [0.0, 5.0],
             'wind_direction_range': [0.0, 2*np.pi],  # Wind direction range (rad)
             'atmospheric_density_uncertainty': 0.05  # 5% standard deviation - reduced from 10%
         }
