@@ -3,8 +3,14 @@
 """
 
 import numpy as np
-# from scipy.integrate import solve_ivp  # Replaced with custom RK4 integration
-from utils import *
+try:
+    from scipy.integrate import solve_ivp  # type: ignore
+except Exception:  # SciPy not available in some environments
+    solve_ivp = None
+try:
+    from .utils import *  # Package execution
+except Exception:
+    from utils import *  # Script execution
 
 class FlightSimulator:
     """6DOF flight dynamics simulator."""
@@ -72,12 +78,12 @@ class FlightSimulator:
             else:
                 wind_vel = np.array([0.0, 0.0, 0.0])
 
+            # Axial speed along the rail
             speed = np.dot(velocity, direction)
-            rel_vel = direction * speed - wind_vel
-            # Only the component of relative velocity along the rail
-            # contributes to axial drag; crosswind forces are reacted by the
-            # rail hardware and do not slow the rocket during this phase.
-            rel_speed = np.dot(rel_vel, direction)
+            # Only the component of wind along the rail contributes to axial drag
+            rel_speed = speed - np.dot(wind_vel, direction)
+            # Reconstruct relative velocity vector along rail for Mach calc
+            rel_vel = direction * rel_speed
             mach = mach_number(rel_vel, temp)
             aero_coeffs = self.rocket.get_aerodynamic_coefficients(
                 mach, 0.0, 0.0, mass_props, power_on=True)
@@ -85,9 +91,13 @@ class FlightSimulator:
 
             thrust = self.motor.get_thrust(t, atm['pressure'])
             gravity = self.atmosphere.get_gravity(position[2])
-            accel = (thrust - mass * gravity - drag) / mass
+            # Project gravity along the rail direction
+            gravity_along_rail = -mass * gravity * direction[2]
+            # Net force along rail: thrust + gravity component - drag
+            accel = (thrust + gravity_along_rail - drag) / mass
 
-            speed += accel * dt
+            # Prevent sliding backward along the rail due to numerical noise
+            speed = max(0.0, speed + accel * dt)
             position += direction * speed * dt
             distance += speed * dt
             velocity = direction * speed
@@ -168,106 +178,34 @@ class FlightSimulator:
         # Simulate guided launch rail phase
         state0, rail_time, rail_info = self._simulate_launch_rail(state0)
 
-        # Set up integration
-        def dynamics(t, state):
-            return self._rocket_dynamics(t, state)
-        
-        def ground_impact(t, state):
-            # Only trigger when altitude goes below 0.5m (ground level)
-            return state[2] - 0.5  # altitude minus ground threshold
-        ground_impact.terminal = True
-        ground_impact.direction = -1
-        
-        def apogee_reached(t, state):
-            # Detect apogee when vertical velocity becomes negative (descending)
-            # and altitude is above 1000m to avoid false triggers during ascent
-            if state[2] > 1000.0 and state[5] < 0:
-                return 0.0  # Trigger event
-            return 1.0  # Don't trigger
-        apogee_reached.terminal = False  # Don't terminate, just record
-        apogee_reached.direction = -1
-        
-        def excessive_altitude(t, state):
-            # Terminate if altitude exceeds 100 km (clearly unphysical for this rocket)
-            return 100000.0 - state[2]
-        excessive_altitude.terminal = True
-        excessive_altitude.direction = -1
-        
-        # Solve ODE
-        # solution = solve_ivp(
-        #     dynamics,
-        #     [rail_time, self.max_time],
-        #     state0,
-        #     method='RK45',
-        #     rtol=1e-6,
-        #     atol=1e-9,
-        #     events=ground_impact,
-        #     dense_output=True
-        # )
+        if solve_ivp is not None:
+            # Set up integration using SciPy for stability
+            def dynamics(t, state):
+                return self._rocket_dynamics(t, state)
 
-        # Custom RK4 integration with quaternion normalization and improved termination
-        dt = min(self.dt_initial, 0.005)  # Cap time step at 5ms for stability
-        t = rail_time
-        state = state0.copy()
-        times = [t]
-        states = [state.copy()]
-        apogee_detected = False
-        
-        while t < self.max_time:
-            k1 = self._rocket_dynamics(t, state)
-            state2 = state + 0.5 * dt * k1
-            k2 = self._rocket_dynamics(t + 0.5 * dt, state2)
-            state3 = state + 0.5 * dt * k2
-            k3 = self._rocket_dynamics(t + 0.5 * dt, state3)
-            state4 = state + dt * k3
-            k4 = self._rocket_dynamics(t + dt, state4)
-            state += (dt / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
-            
-            # Normalize quaternion to prevent drift
-            state[6:10] = normalize_quaternion(state[6:10])
-            
-            t += dt
-            times.append(t)
-            states.append(state.copy())
-            
-            # Check termination conditions
-            altitude = state[2]
-            vertical_velocity = state[5]
-            
-            # Ground impact
-            if altitude <= 0.5 and vertical_velocity <= 0:
-                break
-                
-            # Excessive altitude check (unphysical for this rocket)
-            if altitude > 100000.0:
-                print(f"Warning: Simulation terminated at excessive altitude {altitude/1000:.1f} km")
-                break
-                
-            # Detect apogee for early termination if rocket is clearly coming down
-            if altitude > 1000.0 and vertical_velocity < 0 and not apogee_detected:
-                apogee_detected = True
-                apogee_time = t
-                # If we've detected apogee and rocket is high up, we can be more aggressive about early termination
-                # to prevent long coast phases that might lead to numerical issues
-                if altitude > 50000.0:  # Above 50km, terminate quickly after apogee
-                    max_coast_time = 60.0  # Allow 60s of coast maximum
-                elif altitude > 25000.0:  # Above 25km, allow some coast time
-                    max_coast_time = 120.0
-                else:
-                    max_coast_time = 300.0  # Normal coast time for lower altitudes
-                    
-            # Early termination for long coast phases at high altitude
-            if apogee_detected and altitude > 25000.0:
-                coast_time = t - apogee_time
-                if coast_time > max_coast_time:
-                    print(f"Warning: Simulation terminated after {coast_time:.1f}s coast at {altitude/1000:.1f} km altitude")
-                    break
-        # Create solution-like structure
-        class Solution:
-            pass
-        solution = Solution()
-        solution.t = np.array(times)
-        solution.y = np.array(states).T
+            def ground_impact(t, state):
+                return state[2]  # altitude, root at 0
+            ground_impact.terminal = True
+            ground_impact.direction = -1
+
+            def excessive_altitude(t, state):
+                return 100000.0 - state[2]
+            excessive_altitude.terminal = True
+            excessive_altitude.direction = -1
+
+            solution = solve_ivp(
+                dynamics,
+                [rail_time, self.max_time],
+                state0,
+                method='RK45',
+                rtol=self.rtol,
+                atol=self.atol,
+                events=[ground_impact, excessive_altitude],
+                dense_output=False,
+                max_step=0.05,
+            )
+        else:
+            raise ImportError("SciPy is required for stable integration. Please activate the venv and install requirements.txt")
 
         # Extract results and shift time to start at zero after rail
         results = self._extract_results(solution, time_offset=rail_time)
@@ -362,10 +300,14 @@ class FlightSimulator:
             thrust = 0.0
         forces_body[0] += thrust  # Thrust along x-axis
         
-        # Deploy parachute when descending below target altitude
-        if (not self.parachute_deployed
-                and altitude <= self.rocket.parachute_deployment_altitude
-                and velocity[2] < 0):
+        # Deploy parachute when descending below target altitude (only if enabled)
+        if (
+            not self.parachute_deployed
+            and self.rocket.parachute_deployment_altitude is not None
+            and self.rocket.parachute_deployment_altitude >= 0
+            and altitude <= self.rocket.parachute_deployment_altitude
+            and velocity[2] < 0
+        ):
             self.parachute_deployed = True
 
         # Aerodynamic forces

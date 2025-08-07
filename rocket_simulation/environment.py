@@ -3,7 +3,10 @@ Atmospheric and environmental modeling
 """
 
 import numpy as np
-from utils import interpolate_1d
+try:
+    from .utils import interpolate_1d  # Package execution
+except Exception:
+    from utils import interpolate_1d  # Script execution
 
 class StandardAtmosphere:
     """1976 U.S. Standard Atmosphere model."""
@@ -48,43 +51,43 @@ class StandardAtmosphere:
             # Extended atmosphere - improved model for stratosphere/mesosphere
             # Use proper U.S. Standard Atmosphere 1976 equations
             if altitude <= 32000.0:  # Upper stratosphere
-                # Linear temperature increase from 20-32 km
-                temperature = self.stratosphere_temp + 0.001 * (altitude - self.stratosphere_height)
+                # Linear temperature increase from 20-32 km (L > 0)
+                L_pos = 0.001  # K/m
+                temperature = self.stratosphere_temp + L_pos * (altitude - self.stratosphere_height)
                 temperature = min(temperature, 228.65)  # Cap at mesosphere base temp
-                
-                # Proper barometric formula for this layer
-                pressure_20km = self.sea_level_pressure * (
+
+                # Pressure at 20 km (from 0-11 km lapse + 11-20 km isothermal)
+                pressure_11km = self.sea_level_pressure * (
                     self.stratosphere_temp / self.sea_level_temperature
                 )**(self.gravity / (self.gas_constant * self.temperature_lapse_rate))
-                pressure_20km *= np.exp(
-                    -self.gravity * (self.stratosphere_height - self.troposphere_height) / 
+                pressure_20km = pressure_11km * np.exp(
+                    -self.gravity * (self.stratosphere_height - self.troposphere_height) /
                     (self.gas_constant * self.stratosphere_temp)
                 )
-                
+
                 if altitude <= 25000.0:
                     # Isothermal layer continuation 20-25 km
                     pressure = pressure_20km * np.exp(
-                        -self.gravity * (altitude - self.stratosphere_height) / 
+                        -self.gravity * (altitude - self.stratosphere_height) /
                         (self.gas_constant * self.stratosphere_temp)
                     )
                 else:
                     # Temperature gradient layer 25-32 km
                     pressure_25km = pressure_20km * np.exp(
-                        -self.gravity * 5000.0 / 
+                        -self.gravity * 5000.0 /
                         (self.gas_constant * self.stratosphere_temp)
                     )
-                    temp_gradient = 0.0028  # K/m temperature gradient
-                    temp_25km = self.stratosphere_temp
-                    
-                    pressure = pressure_25km * (
-                        temperature / temp_25km
-                    )**(self.gravity / (self.gas_constant * temp_gradient))
+                    T25 = self.stratosphere_temp
+                    # For positive lapse rate, exponent is negative
+                    exponent = -self.gravity / (self.gas_constant * L_pos)
+                    pressure = pressure_25km * (temperature / T25) ** exponent
             else:
                 # Mesosphere (32-50 km) - realistic but still simplified
-                temperature = 228.65 - 0.0028 * (altitude - 32000.0)
+                L_neg = -0.0028  # K/m
+                temperature = 228.65 + L_neg * (altitude - 32000.0)
                 temperature = max(temperature, 180.0)  # Don't go below realistic minimum
-                
-                # Exponential decay but with realistic scale height
+
+                # Exponential decay but with realistic scale height approximation
                 scale_height = self.gas_constant * temperature / self.gravity
                 pressure_32km = 868.02  # Pa at 32 km from standard atmosphere
                 pressure = pressure_32km * np.exp(-(altitude - 32000.0) / scale_height)
@@ -161,7 +164,8 @@ class WindModel:
         turbulence_scale = self.turbulence_intensity * np.exp(-altitude / 2000.0)
         wind_profile[0, 0] = wind_u + random_state.normal(0, turbulence_scale)
         wind_profile[0, 1] = wind_v + random_state.normal(0, turbulence_scale)
-        wind_profile[0, 2] = random_state.normal(0, turbulence_scale * 0.3)  # Reduced vertical turbulence
+        # Disable vertical wind to prevent non-physical altitude bumps
+        wind_profile[0, 2] = 0.0
         
         # Generate remaining points with proper correlation
         for i in range(1, n_points):
@@ -190,7 +194,7 @@ class WindModel:
             
             new_turbulence_u = correlation_factor * prev_turbulence_u + random_state.normal(0, turbulence_variance)
             new_turbulence_v = correlation_factor * prev_turbulence_v + random_state.normal(0, turbulence_variance)
-            new_turbulence_w = correlation_factor * prev_turbulence_w + random_state.normal(0, turbulence_variance * 0.3)
+            new_turbulence_w = 0.0
             
             # Combine mean wind with turbulence
             wind_profile[i, 0] = wind_u + new_turbulence_u
@@ -242,7 +246,7 @@ class WindModel:
         turbulence_scale = self.turbulence_intensity * np.exp(-altitudes[0] / 2000.0)
         wind_profile[0, 0] = base_profile[0, 0] + random_state.normal(0, turbulence_scale)
         wind_profile[0, 1] = base_profile[0, 1] + random_state.normal(0, turbulence_scale)
-        wind_profile[0, 2] = base_profile[0, 2] + random_state.normal(0, turbulence_scale * 0.3)
+        wind_profile[0, 2] = 0.0
 
         for i in range(1, n_points):
             altitude = altitudes[i]
@@ -256,7 +260,7 @@ class WindModel:
 
             new_turb_u = correlation_factor * prev_turb[0] + random_state.normal(0, turbulence_var)
             new_turb_v = correlation_factor * prev_turb[1] + random_state.normal(0, turbulence_var)
-            new_turb_w = correlation_factor * prev_turb[2] + random_state.normal(0, turbulence_var * 0.3)
+            new_turb_w = 0.0
 
             wind_profile[i, 0] = base_profile[i, 0] + new_turb_u
             wind_profile[i, 1] = base_profile[i, 1] + new_turb_v

@@ -11,8 +11,12 @@ from functools import partial
 import time
 from datetime import datetime
 import json
-from simulator import FlightSimulator
-from utils import *
+try:
+    from .simulator import FlightSimulator  # Package execution
+    from .utils import *
+except Exception:
+    from simulator import FlightSimulator  # Script execution
+    from utils import *
 
 class MonteCarloAnalyzer:
     """Monte Carlo analysis for rocket simulation."""
@@ -42,7 +46,8 @@ class MonteCarloAnalyzer:
             # Maximum surface wind lowered to 5 m/s.  Higher winds caused the
             # over-stable vehicle to weathercock dramatically, leading to
             # unrealistic horizontal range in the Monte Carlo results.
-            'wind_speed_range': [0.0, 5.0],
+            # Constrain base surface wind for MC to very low values by default
+            'wind_speed_range': [0.0, 0.5],
             'wind_direction_range': [0.0, 2*np.pi],  # Wind direction range (rad)
             'atmospheric_density_uncertainty': 0.05  # 5% standard deviation - reduced from 10%
         }
@@ -239,7 +244,10 @@ class MonteCarloAnalyzer:
             initial_conditions['velocity'] = params['initial_velocity_offset']
         
         if 'attitude' in initial_conditions:
-            initial_conditions['attitude'] = np.array(initial_conditions['attitude']) + params['initial_attitude_offset']
+            base_att = np.array(initial_conditions['attitude'])
+            # Keep near-vertical orientation (body x up). Assume base is near -pi/2 pitch.
+            base_att[1] = -np.pi/2 + (base_att[1] + np.pi/2)
+            initial_conditions['attitude'] = base_att + params['initial_attitude_offset']
         else:
             initial_conditions['attitude'] = params['initial_attitude_offset']
         

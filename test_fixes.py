@@ -54,7 +54,8 @@ def test_single_simulation():
     initial_conditions = {
         'position': [0.0, 0.0, 0.0],
         'velocity': [0.0, 0.0, 0.0],
-        'attitude': [0.0, 0.0, 0.0],  # Vertical launch
+        # Body x-axis up: roll=0, pitch=-pi/2, yaw=0
+        'attitude': [0.0, -np.pi/2, 0.0],
         'angular_velocity': [0.0, 0.0, 0.0]
     }
     
@@ -98,7 +99,8 @@ def test_monte_carlo_sample():
     initial_conditions = {
         'position': [0.0, 0.0, 0.0],
         'velocity': [0.0, 0.0, 0.0],
-        'attitude': [0.0, 0.05, 0.0],  # Slight tilt for dispersion
+        # Vertical with slight tilt (body x up, small pitch offset)
+        'attitude': [0.0, -np.pi/2 + 0.05, 0.0],
         'angular_velocity': [0.0, 0.0, 0.0]
     }
     

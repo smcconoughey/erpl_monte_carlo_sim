@@ -3,7 +3,10 @@ Rocket motor and thrust modeling
 """
 
 import numpy as np
-from utils import interpolate_1d
+try:
+    from .utils import interpolate_1d  # Package execution
+except Exception:
+    from utils import interpolate_1d  # Script execution
 
 class SolidMotor:
     """Solid propellant motor model."""
@@ -17,15 +20,12 @@ class SolidMotor:
         self.propellant_mass = 63.5  # kg (140 lb)
         self.average_thrust = self.total_impulse / self.burn_time
 
-        # Thrust values at standard conditions (approximate)
-        # Provided data: 2,290 lbf sea level, 2,590 lbf in vacuum
-        self.thrust_sea_level = 2290 * 4.44822  # N
-        self.thrust_vacuum = 2590 * 4.44822  # N
+        # Use thrust curve only; do not double-count via sea-level/vacuum constants
+        self.thrust_sea_level = None
+        self.thrust_vacuum = None
 
         # Nozzle exit area estimated from SL/vacuum difference
-        self.nozzle_exit_area = (
-            self.thrust_vacuum - self.thrust_sea_level
-        ) / 101325.0  # Pa
+        self.nozzle_exit_area = 0.0
         
         # Thrust curve definition (time vs thrust)
         self.thrust_curve_time = np.array([
@@ -67,13 +67,7 @@ class SolidMotor:
 
         # Base thrust (sea level reference)
         thrust_sl = interpolate_1d(time, self.thrust_curve_time, self.thrust_curve_thrust)
-
-        if ambient_pressure is None:
-            return thrust_sl
-
-        # Pressure correction using estimated nozzle exit area
-        pressure_correction = self.nozzle_exit_area * (101325.0 - ambient_pressure)
-        return thrust_sl + pressure_correction
+        return thrust_sl
     
     def get_mass_flow_rate(self, time):
         """Get mass flow rate at given time."""

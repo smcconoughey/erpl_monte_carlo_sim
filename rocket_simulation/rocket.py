@@ -3,7 +3,10 @@ Rocket configuration and mass properties
 """
 
 import numpy as np
-from utils import *
+try:
+    from .utils import *  # Package execution
+except Exception:  # Script execution fallback
+    from utils import *
 
 class Rocket:
     """Represents a rocket with all its physical properties."""
@@ -42,8 +45,8 @@ class Rocket:
         # Aerodynamic coefficients (functions of Mach number and angle of attack)
         self.Cd_data = {
             'mach': [0.0, 0.5, 0.8, 1.0, 1.2, 1.5, 2.0, 3.0],
-            'cd0': [0.4, 0.42, 0.48, 0.65, 0.52, 0.45, 0.40, 0.38],
-            'cda': [1.2, 1.25, 1.3, 1.4, 1.35, 1.25, 1.2, 1.15]  # per radian
+            'cd0': [0.35, 0.36, 0.40, 0.55, 0.45, 0.40, 0.36, 0.34],
+            'cda': [0.8, 0.85, 0.9, 1.0, 0.95, 0.9, 0.85, 0.8]  # per radian
         }
 
         # Simple dynamic CP shift with Mach number (forward negative)
@@ -55,10 +58,10 @@ class Rocket:
         # Center of pressure calculation (Barrowman method)
         self.cp_location = self._calculate_center_of_pressure()
         
-        # Recovery system
-        self.parachute_area = 15.0  # m^2 (assuming 8 in is recovery bay diameter, not chute)
-        self.parachute_cd = 2.0
-        self.parachute_deployment_altitude = 500  # m
+        # Recovery system (disabled by default for ballistic flights)
+        self.parachute_area = 0.0
+        self.parachute_cd = 0.0
+        self.parachute_deployment_altitude = -1  # negative => never deploy
 
         # Additional aerodynamic settings
         # After motor burnout the base drag increases noticeably.  Use a simple
